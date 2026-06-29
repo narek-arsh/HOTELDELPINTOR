@@ -1,27 +1,26 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import Usuario
+import bcrypt
 import os
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 600))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def create_access_token(data: dict) -> str:
@@ -54,6 +53,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def require_rol(*roles):
     def checker(current_user: Usuario = Depends(get_current_user)):
         if current_user.rol not in roles:
-            raise HTTPException(status_code=403, detail="Sin permisos para esta acción")
+            raise HTTPException(status_code=403, detail="Sin permisos")
         return current_user
     return checker
