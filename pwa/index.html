@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1B2A4A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mantenimiento">
+  <title>Hotel del Pintor — Mantenimiento</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --navy: #1B2A4A;
+      --navy2: #2A3F6B;
+      --amber: #E8A020;
+      --amber-bg: #FFF3DC;
+      --green: #1A8C5B;
+      --green-bg: #E6F7F0;
+      --red: #C0392B;
+      --red-bg: #FDECEA;
+      --gray: #8492A6;
+      --gray-bg: #EEF0F4;
+      --border: #DDE1E9;
+      --bg: #F7F8FA;
+      --white: #FFFFFF;
+      --text: #1B2A4A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; min-height: 100vh; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--navy);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-title { color: white; font-weight: 800; font-size: 16px; flex: 1; }
+    .topbar-sub { color: #ffffff99; font-size: 12px; }
+    .topbar-btn {
+      background: none;
+      border: 1px solid #ffffff44;
+      border-radius: 6px;
+      color: #ffffffbb;
+      font-size: 12px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    /* ── Content ── */
+    .content { flex: 1; padding: 24px 20px; max-width: 480px; width: 100%; margin: 0 auto; }
+
+    /* ── Login ── */
+    #screen-login {
+      background: var(--navy);
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 20px;
+      padding: 36px 28px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 24px 64px #0004;
+    }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo .emoji { font-size: 48px; }
+    .login-logo h1 { font-size: 20px; font-weight: 800; color: var(--navy); margin-top: 8px; }
+    .login-logo p { color: var(--gray); font-size: 13px; margin-top: 4px; }
+
+    /* ── Form elements ── */
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      font-family: inherit;
+      color: var(--text);
+      background: white;
+      transition: border-color 0.15s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--navy);
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-navy { background: var(--navy); color: white; }
+    .btn-ghost { background: var(--gray-bg); color: var(--text); }
+    .btn-sm {
+      width: auto;
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+
+    /* ── Issue type grid ── */
+    .issue-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .issue-btn {
+      padding: 14px 10px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .issue-btn.selected {
+      border-color: var(--navy);
+      background: #1B2A4A0D;
+      color: var(--navy);
+    }
+
+    /* ── Priority buttons ── */
+    .priority-row { display: flex; gap: 8px; }
+    .prio-btn {
+      flex: 1;
+      padding: 10px 6px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gray);
+      transition: all 0.15s;
+    }
+    .prio-btn.selected-urgente { border-color: var(--red); background: var(--red-bg); color: var(--red); }
+    .prio-btn.selected-normal { border-color: var(--amber); background: var(--amber-bg); color: var(--amber); }
+    .prio-btn.selected-baja { border-color: var(--green); background: var(--green-bg); color: var(--green); }
+
+    /* ── Cards ── */
+    .card {
+      background: white;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .card-room { font-size: 20px; font-weight: 800; color: var(--navy); }
+    .card-type { font-size: 14px; font-weight: 600; color: var(--text); }
+    .card-notes { font-size: 12px; color: var(--gray); margin-top: 4px; }
+    .card-meta { font-size: 11px; color: var(--gray); margin-top: 8px; }
+
+    /* ── Badges ── */
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-recibido { background: var(--gray-bg); color: var(--gray); }
+    .badge-en_curso { background: var(--amber-bg); color: var(--amber); }
+    .badge-esperando_material { background: #EEF0F4; color: #5A6A82; }
+    .badge-resuelto { background: var(--green-bg); color: var(--green); }
+    .badge-archivado { background: #f0f0f0; color: #aaa; }
+    .badge-urgente { background: var(--red-bg); color: var(--red); }
+    .badge-normal { background: var(--amber-bg); color: var(--amber); }
+    .badge-baja { background: var(--green-bg); color: var(--green); }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      background: white;
+      border-top: 1px solid var(--border);
+      display: flex;
+      position: sticky;
+      bottom: 0;
+    }
+    .nav-btn {
+      flex: 1;
+      padding: 12px 8px 16px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+    .nav-btn .icon { font-size: 22px; }
+    .nav-btn.active { color: var(--navy); }
+
+    /* ── Success screen ── */
+    .success-box { text-align: center; padding: 48px 0; }
+    .success-box .emoji { font-size: 72px; }
+    .success-box h2 { font-size: 22px; font-weight: 800; color: var(--navy); margin-top: 16px; }
+    .success-box p { color: var(--gray); margin-top: 8px; margin-bottom: 28px; }
+
+    /* ── Error ── */
+    .error-msg { color: var(--red); font-size: 13px; margin-top: 8px; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 40px; color: var(--gray); }
+
+    /* ── Empty ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--gray); }
+    .empty .emoji { font-size: 48px; margin-bottom: 12px; }
+
+    /* ── Otro field ── */
+    .otro-field {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--red-bg);
+      border-radius: 10px;
+      border: 1.5px solid var(--red);
+    }
+    .otro-field label { color: var(--red); }
+    .otro-field textarea {
+      border-color: var(--red);
+      background: white;
+      margin-top: 6px;
+    }
+    .otro-field .hint { font-size: 11px; color: var(--red); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SCREEN: LOGIN
+══════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="emoji">🏨</div>
+      <h1>Hotel del Pintor</h1>
+      <p>Sistema de mantenimiento</p>
+    </div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" placeholder="••••••" autocomplete="current-password">
+    </div>
+    <div id="login-error" class="error-msg" style="display:none"></div>
+    <button class="btn btn-navy" id="login-btn" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN: LIMPIADORA
+══════════════════════════════════════ -->
+<div id="screen-limpiadora" class="screen">
+  <div class="topbar">
+    <span>🧹</span>
+    <div>
+      <div class="topbar-title">Hotel del Pintor</div>
+      <div class="topbar-sub" id="limpiadora-nombre"></div>
+    </div>
+    <button class="topbar-btn" onclick="logout()">Salir</button>
+  </div>
+
+  <!-- Tab: Nueva incidencia -->
+  <div id="tab-nueva" class="content" style="display:block">
+    <div id="nueva-form">
+      <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:4px">Nueva incidencia</h2>
+      <p style="color:var(--gray);font-size:13px;margin-bottom:24px" id="form-planta"></p>
+
+      <div class="field">
+        <label>Habitación *</label>
+        <input type="number" id="f-habitacion" placeholder="Ej: 201" inputmode="numeric">
+      </div>
+
+      <div class="field">
+        <label>Tipo de incidencia *</label>
+        <div class="issue-grid">
+          <button class="issue-btn" data-tipo="bombilla" onclick="selectTipo(this)">💡 Bombilla</button>
+          <button class="issue-btn" data-tipo="puerta" onclick="selectTipo(this)">🚪 Puerta</button>
+          <button class="issue-btn" data-tipo="fontaneria" onclick="selectTipo(this)">🔧 Fontanería</button>
+          <button class="issue-btn" data-tipo="calefaccion" onclick="selectTipo(this)">🌡️ Calefacción</button>
+          <button class="issue-btn" data-tipo="mueble" onclick="selectTipo(this)">🛋️ Mobiliario</button>
+          <button class="issue-btn" data-tipo="otro" onclick="selectTipo(this)">📋 Otro</button>
+        </div>
+        <div id="otro-field" class="otro-field" style="display:none">
+          <label>¿Qué hay que hacer? *</label>
+          <textarea id="f-descripcion" placeholder="Describe el problema con detalle..." rows="3"></textarea>
+          <div class="hint">Obligatorio para continuar</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Prioridad</label>
+        <div class="priority-row">
+          <button class="prio-btn" data-prio="urgente" onclick="selectPrio(this)">🔴 Urgente</button>
+          <button class="prio-btn selected-normal" data-prio="normal" onclick="selectPrio(this)">🟡 Normal</button>
+          <button class="prio-btn" data-prio="baja" onclick="selectPrio(this)">🟢 Sin prisa</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Notas adicionales</label>
+        <textarea id="f-notas" placeholder="Cualquier detalle extra..." rows="2"></textarea>
+      </div>
+
+      <div id="form-error" class="error-msg" style="display:none"></div>
+      <button class="btn btn-navy" id="enviar-btn" onclick="enviarIncidencia()">Enviar incidencia →</button>
+    </div>
+
+    <div id="nueva-success" class="success-box" style="display:none">
+      <div class="emoji">✅</div>
+      <h2>¡Enviado!</h2>
+      <p>Mantenimiento recibirá tu aviso enseguida.</p>
+      <button class="btn btn-ghost" onclick="resetForm()">Nueva incidencia</button>
+    </div>
+  </div>
+
+  <!-- Tab: Mis incidencias -->
+  <div id="tab-mis" class="content" style="display:none">
+    <h2 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:20px">Mis incidencias</h2>
+    <div id="mis-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-nueva" onclick="showTab('nueva')">
+      <span class="icon">➕</span>Nueva
+    </button>
+    <button class="nav-btn" id="nav-mis" onclick="showTab('mis')">
+      <span class="icon">📋</span>Mis avisos
+    </button>
+  </nav>
+</div>
+
+<script>
+const API = "https://hoteldelpintor-production.up.railway.app";
+let token = localStorage.getItem("token");
+let usuario = JSON.parse(localStorage.getItem("usuario") || "null");
+let tipoSeleccionado = null;
+let prioSeleccionada = "normal";
+
+// ── Init ──────────────────────────────────────────────
+window.addEventListener("load", () => {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js");
+  }
+  if (token && usuario) {
+    showApp();
+  }
+});
+
+// ── Login ─────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errEl = document.getElementById("login-error");
+  const btn = document.getElementById("login-btn");
+
+  errEl.style.display = "none";
+  btn.disabled = true;
+  btn.textContent = "Entrando...";
+
+  try {
+    const form = new URLSearchParams();
+    form.append("username", email);
+    form.append("password", password);
+
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.detail || "Error al iniciar sesión";
+      errEl.style.display = "block";
+      return;
+    }
+
+    token = data.access_token;
+    usuario = data.usuario;
+    localStorage.setItem("token", token);
+    localStorage.setItem("usuario", JSON.stringify(usuario));
+    showApp();
+
+  } catch (e) {
+    errEl.textContent = "Error de conexión. Comprueba tu internet.";
+    errEl.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Entrar";
+  }
+}
+
+// Enter key on login
+document.getElementById("login-password").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+});
+
+// ── Routing ───────────────────────────────────────────
+function showApp() {
+  if (!usuario) { showScreen("login"); return; }
+
+  if (usuario.rol === "limpiadora") {
+    document.getElementById("limpiadora-nombre").textContent =
+      usuario.nombre + (usuario.planta ? " · " + usuario.planta : "");
+    document.getElementById("form-planta").textContent =
+      (usuario.planta || "") + (usuario.edificio ? " · " + usuario.edificio : "");
+    showScreen("limpiadora");
+  } else {
+    // Mantenimiento y admin redirigen al panel — por ahora mostramos mensaje
+    showScreen("login");
+    const err = document.getElementById("login-error");
+    err.textContent = "Usa el panel de escritorio para acceso de mantenimiento/admin.";
+    err.style.display = "block";
+  }
+}
+
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + name).classList.add("active");
+}
+
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("usuario");
+  token = null; usuario = null;
+  showScreen("login");
+}
+
+// ── Tabs ──────────────────────────────────────────────
+function showTab(tab) {
+  document.getElementById("tab-nueva").style.display = tab === "nueva" ? "block" : "none";
+  document.getElementById("tab-mis").style.display = tab === "mis" ? "block" : "none";
+  document.getElementById("nav-nueva").classList.toggle("active", tab === "nueva");
+  document.getElementById("nav-mis").classList.toggle("active", tab === "mis");
+  if (tab === "mis") cargarMisIncidencias();
+}
+
+// ── Tipo selector ─────────────────────────────────────
+function selectTipo(btn) {
+  document.querySelectorAll(".issue-btn").forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
+  tipoSeleccionado = btn.dataset.tipo;
+  document.getElementById("otro-field").style.display =
+    tipoSeleccionado === "otro" ? "block" : "none";
+  if (tipoSeleccionado === "otro") {
+    document.getElementById("f-descripcion").focus();
+  }
+}
+
+// ── Prioridad selector ────────────────────────────────
+function selectPrio(btn) {
+  document.querySelectorAll(".prio-btn").forEach(b => {
+    b.className = "prio-btn";
+  });
+  prioSeleccionada = btn.dataset.prio;
+  btn.classList.add("selected-" + prioSeleccionada);
+}
+
+// ── Enviar incidencia ─────────────────────────────────
+async function enviarIncidencia() {
+  const habitacion = document.getElementById("f-habitacion").value.trim();
+  const descripcion = document.getElementById("f-descripcion").value.trim();
+  const notas = document.getElementById("f-notas").value.trim();
+  const errEl = document.getElementById("form-error");
+  const btn = document.getElementById("enviar-btn");
+
+  errEl.style.display = "none";
+
+  if (!habitacion) { errEl.textContent = "Introduce el número de habitación."; errEl.style.display = "block"; return; }
+  if (!tipoSeleccionado) { errEl.textContent = "Selecciona el tipo de incidencia."; errEl.style.display = "block"; return; }
+  if (tipoSeleccionado === "otro" && !descripcion) { errEl.textContent = "Describe qué hay que hacer."; errEl.style.display = "block"; return; }
+
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+
+  try {
+    const res = await fetch(`${API}/api/incidencias/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        habitacion,
+        tipo: tipoSeleccionado,
+        descripcion: tipoSeleccionado === "otro" ? descripcion : (notas || null),
+        prioridad: prioSeleccionada,
+        notas: notas || null
+      })
+    });
+
+    if (res.status === 401) { logout(); return; }
+
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.detail || "Error al enviar.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    document.getElementById("nueva-form").style.display = "none";
+    document.getElementById("nueva-success").style.display = "block";
+
+  } catch (e) {
+    errEl.textContent = "Error de conexión.";
+    errEl.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Enviar incidencia →";
+  }
+}
+
+// ── Reset form ────────────────────────────────────────
+function resetForm() {
+  document.getElementById("f-habitacion").value = "";
+  document.getElementById("f-descripcion").value = "";
+  document.getElementById("f-notas").value = "";
+  document.querySelectorAll(".issue-btn").forEach(b => b.classList.remove("selected"));
+  document.querySelectorAll(".prio-btn").forEach(b => b.className = "prio-btn");
+  document.querySelector('[data-prio="normal"]').classList.add("selected-normal");
+  document.getElementById("otro-field").style.display = "none";
+  tipoSeleccionado = null;
+  prioSeleccionada = "normal";
+  document.getElementById("nueva-form").style.display = "block";
+  document.getElementById("nueva-success").style.display = "none";
+}
+
+// ── Mis incidencias ───────────────────────────────────
+async function cargarMisIncidencias() {
+  const lista = document.getElementById("mis-lista");
+  lista.innerHTML = '<div class="loading">Cargando...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/incidencias/`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (res.status === 401) { logout(); return; }
+    const data = await res.json();
+
+    if (!data.length) {
+      lista.innerHTML = '<div class="empty"><div class="emoji">📭</div><div>No has enviado ningún aviso todavía.</div></div>';
+      return;
+    }
+
+    const estadoLabels = {
+      recibido: "📥 Recibido",
+      en_curso: "🔧 En curso",
+      esperando_material: "⏳ Esperando material",
+      resuelto: "✅ Resuelto",
+      archivado: "🗄️ Archivado"
+    };
+
+    const tipoLabels = {
+      bombilla: "💡 Bombilla",
+      puerta: "🚪 Puerta",
+      fontaneria: "🔧 Fontanería",
+      calefaccion: "🌡️ Calefacción",
+      mueble: "🛋️ Mobiliario",
+      otro: "📋"
+    };
+
+    lista.innerHTML = data.map(inc => {
+      const tipoLabel = inc.tipo === "otro"
+        ? "📋 " + (inc.descripcion || "Otro")
+        : (tipoLabels[inc.tipo] || inc.tipo);
+
+      const fecha = new Date(inc.creado_en);
+      const diff = Math.floor((Date.now() - fecha) / 60000);
+      const fechaStr = diff < 60 ? `hace ${diff} min` :
+                       diff < 1440 ? `hace ${Math.floor(diff/60)} h` :
+                       fecha.toLocaleDateString("es-ES");
+
+      const borderColor = {
+        recibido: "#8492A6",
+        en_curso: "#E8A020",
+        esperando_material: "#5A6A82",
+        resuelto: "#1A8C5B",
+        archivado: "#ccc"
+      }[inc.estado] || "#8492A6";
+
+      return `
+        <div class="card" style="border-left: 4px solid ${borderColor}">
+          <div class="card-header">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="card-room">Hab. ${inc.habitacion}</span>
+                <span class="badge badge-${inc.prioridad}">${inc.prioridad}</span>
+              </div>
+              <div class="card-type">${tipoLabel}</div>
+            </div>
+            <div style="margin-left:auto">
+              <span class="badge badge-${inc.estado}">${estadoLabels[inc.estado] || inc.estado}</span>
+            </div>
+          </div>
+          ${inc.notas_mantenimiento ? `<div class="card-notes">📝 ${inc.notas_mantenimiento}</div>` : ""}
+          <div class="card-meta">${inc.codigo} · ${fechaStr}</div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (e) {
+    lista.innerHTML = '<div class="empty"><div class="emoji">⚠️</div><div>Error de conexión.</div></div>';
+  }
+}
+</script>
+</body>
+</html>
