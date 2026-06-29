@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 class UsuarioCreate(BaseModel):
     nombre: str
     email: EmailStr
+    username: Optional[str] = None
     password: str
     rol: RolEnum
     edificio: Optional[str] = None
@@ -65,6 +66,7 @@ def crear_usuario(
 
     usuario = Usuario(
         nombre=data.nombre,
+        username=data.username,
         email=data.email,
         password_hash=hash_password(data.password),
         rol=data.rol,
