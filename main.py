@@ -41,7 +41,7 @@ def crear_admin_inicial():
             admin_user = Usuario(
                 nombre="Administrador",
                 email="admin@hotelpintor.com",
-                password_hash=hash_password("Admin24!"),
+                password_hash=hash_password("Admin24"),
                 rol=RolEnum.admin,
                 activo=True,
             )
