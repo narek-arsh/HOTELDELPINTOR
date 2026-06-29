@@ -347,10 +347,17 @@ function showApp() {
     buildFiltros();
     cargarTodas();
     setInterval(cargarTodas, 30000);
+  } else if (usuario.rol === "admin") {
+    document.getElementById("mant-sub").textContent = usuario.nombre + " · Admin";
+    showScreen("mantenimiento");
+    buildFiltros();
+    cargarTodas();
+    setInterval(cargarTodas, 30000);
   } else {
     showScreen("login");
-    document.getElementById("login-error").textContent = "Usa el panel de escritorio para administración.";
-    document.getElementById("login-error").style.display = "block";
+    const e = document.getElementById("login-err");
+    e.textContent = "Usuario no autorizado.";
+    e.style.display = "block";
   }
 }
 
