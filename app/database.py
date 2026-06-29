@@ -3,7 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").replace(
+    "postgresql://", "postgresql+pg8000://"
+)
 
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL no está definida")
