@@ -17,15 +17,16 @@ class TokenResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Busca por username O por email
     user = db.query(Usuario).filter(
-        Usuario.email == form_data.username,
+        (Usuario.username == form_data.username) | (Usuario.email == form_data.username),
         Usuario.activo == True
     ).first()
 
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos"
+            detail="Usuario o contraseña incorrectos"
         )
 
     token = create_access_token({"sub": str(user.id), "rol": user.rol})
