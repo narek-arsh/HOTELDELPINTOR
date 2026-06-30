@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.models import Incidencia, FotoIncidencia, Usuario
-from app.auth import get_current_user
+from app.models.models import Incidencia, FotoIncidencia, Usuario, RolEnum
+from app.auth import get_current_user, require_rol
 import cloudinary
 import cloudinary.uploader
+import cloudinary.api
 import os
 
 router = APIRouter(prefix="/api/fotos", tags=["fotos"])
@@ -78,3 +79,29 @@ def borrar_foto(
     db.delete(foto)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/sistema/uso-almacenamiento")
+def uso_almacenamiento(
+    _=Depends(require_rol(RolEnum.admin)),
+):
+    """Devuelve el consumo actual de la cuenta Cloudinary (plan gratuito: 25GB)."""
+    try:
+        usage = cloudinary.api.usage()
+        storage_bytes = usage.get("storage", {}).get("usage", 0)
+        storage_limit = usage.get("storage", {}).get("limit", 25 * 1024 * 1024 * 1024)
+        credits_used = usage.get("credits", {}).get("usage", 0)
+        credits_limit = usage.get("credits", {}).get("limit", 25)
+
+        porcentaje = round((storage_bytes / storage_limit) * 100, 1) if storage_limit else 0
+
+        return {
+            "almacenamiento_usado_mb": round(storage_bytes / (1024 * 1024), 1),
+            "almacenamiento_limite_mb": round(storage_limit / (1024 * 1024), 1),
+            "porcentaje_usado": porcentaje,
+            "creditos_usados": credits_used,
+            "creditos_limite": credits_limit,
+            "alerta": porcentaje >= 80,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"No se pudo consultar Cloudinary: {str(e)}")
