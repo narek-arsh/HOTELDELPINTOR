@@ -317,7 +317,7 @@ async def crear_comentario(
     data: ComentarioCreate,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(
-        require_rol(RolEnum.mantenimiento, RolEnum.admin)
+        require_rol(RolEnum.mantenimiento, RolEnum.admin, RolEnum.gobernanta)
     ),
 ):
     inc = db.query(Incidencia).filter(Incidencia.id == iid).first()
