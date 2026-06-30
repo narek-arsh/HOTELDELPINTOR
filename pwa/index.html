@@ -531,6 +531,10 @@ function verDetalleLimpiadora(id) {
     <div style="margin-bottom:16px">
       <span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span>
     </div>
+    ${inc.notas ? `
+      <span class="section-label">Tu nota</span>
+      <p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>
+    ` : ""}
     ${inc.notas_mantenimiento ? `
       <span class="section-label">Nota de mantenimiento</span>
       <p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas_mantenimiento}</p>
@@ -631,7 +635,8 @@ async function abrirDetalle(id) {
     </div>
     <div class="field" style="margin-bottom:14px">
       <label class="field-label">Nota para la limpiadora (opcional)</label>
-      <textarea id="nota-mant" rows="2" placeholder="Ej: pedido el repuesto, llega el jueves...">${inc.notas_mantenimiento||""}</textarea>
+      <textarea id="nota-mant" rows="2" placeholder="Ej: pedido el repuesto, llega el jueves..."></textarea>
+      ${inc.notas_mantenimiento ? `<p style="font-size:11px;color:var(--slate);margin-top:4px">Nota anterior: "${inc.notas_mantenimiento}"</p>` : ""}
     </div>
     <button class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
     <span class="section-label">Fotos</span>
