@@ -127,3 +127,15 @@ class ComentarioInterno(Base):
 
     incidencia = relationship("Incidencia", backref="comentarios_internos")
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
+
+
+class DeviceToken(Base):
+    """Token FCM de un dispositivo/navegador para enviarle notificaciones push."""
+    __tablename__ = "device_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+    token = Column(String(500), unique=True, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
