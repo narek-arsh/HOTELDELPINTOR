@@ -1040,18 +1040,18 @@ let notifToken = localStorage.getItem("hp_fcm_token") || null;
 function initFirebaseMessaging() {
   if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
   try {
-    if (!fcmApp) {
-      fcmApp = firebase.initializeApp(FIREBASE_CONFIG);
-      fcmMessaging = firebase.messaging();
+    if (!fcmMessaging) {
+      fcmApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+      fcmMessaging = firebase.messaging(fcmApp);
+      // Mensajes en primer plano (app abierta)
+      fcmMessaging.onMessage((payload) => {
+        const title = payload.notification?.title || "Hotel del Pintor";
+        const body = payload.notification?.body || "";
+        if (Notification.permission === "granted") {
+          new Notification(title, { body, icon: "/icon-192.png" });
+        }
+      });
     }
-    // Mensajes en primer plano (app abierta)
-    fcmMessaging.onMessage((payload) => {
-      const title = payload.notification?.title || "Hotel del Pintor";
-      const body = payload.notification?.body || "";
-      if (Notification.permission === "granted") {
-        new Notification(title, { body, icon: "/icon-192.png" });
-      }
-    });
   } catch (e) { console.warn("Firebase messaging no disponible:", e); }
 }
 
@@ -1119,7 +1119,7 @@ async function toggleNotificaciones() {
     statusEl.textContent = "Activadas en este dispositivo";
     btnEl.textContent = "Desactivar";
   } catch (e) {
-    statusEl.textContent = "Error al activar. Inténtalo de nuevo.";
+    statusEl.textContent = "Error: " + (e.message || "inténtalo de nuevo");
     console.error(e);
   } finally {
     btnEl.disabled = false;
