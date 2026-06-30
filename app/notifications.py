@@ -27,7 +27,10 @@ def init_firebase():
 
 def enviar_notificacion(tokens: list[str], titulo: str, cuerpo: str, data: dict = None) -> dict:
     """Envía una notificación push a una lista de tokens de dispositivo. Devuelve un resumen de éxitos/fallos."""
-    if not _initialized or not tokens:
+    if not _initialized:
+        print("[enviar_notificacion] Firebase no inicializado, abortando")
+        return {"enviados": 0, "fallidos": 0, "tokens_invalidos": []}
+    if not tokens:
         return {"enviados": 0, "fallidos": 0, "tokens_invalidos": []}
 
     enviados = 0
@@ -54,9 +57,11 @@ def enviar_notificacion(tokens: list[str], titulo: str, cuerpo: str, data: dict 
             messaging.send(message)
             enviados += 1
         except messaging.UnregisteredError:
+            print(f"[enviar_notificacion] Token inválido (no registrado): {token[:20]}...")
             tokens_invalidos.append(token)
             fallidos += 1
-        except Exception:
+        except Exception as e:
+            print(f"[enviar_notificacion] ERROR con token {token[:20]}...: {type(e).__name__} - {e}")
             fallidos += 1
 
     return {"enviados": enviados, "fallidos": fallidos, "tokens_invalidos": tokens_invalidos}
