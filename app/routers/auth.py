@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.models import Usuario
@@ -21,11 +21,12 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    # Busca por username O por email
+    identificador = form_data.username.strip().lower()
+
     user = db.query(Usuario).filter(
         or_(
-            Usuario.username == form_data.username,
-            Usuario.email == form_data.username
+            func.lower(Usuario.username) == identificador,
+            func.lower(Usuario.email) == identificador,
         ),
         Usuario.activo == True
     ).first()
