@@ -53,6 +53,9 @@ if os.path.exists(PWA_DIR):
     @app.get("/icon-512.png")
     def icon512(): return FileResponse(os.path.join(PWA_DIR, "icon-512.png"))
 
+    @app.get("/logo-login.png")
+    def logo_login(): return FileResponse(os.path.join(PWA_DIR, "logo-login.png"))
+
     @app.get("/")
     def pwa(): return FileResponse(os.path.join(PWA_DIR, "index.html"))
 else:
