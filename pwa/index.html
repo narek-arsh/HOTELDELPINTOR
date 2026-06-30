@@ -699,7 +699,7 @@ async function abrirDetalle(id) {
   const estados = ["recibido","en_curso","esperando_material","resuelto"];
   const prios = ["urgente","normal","baja"];
   const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
-  const notaLimpiadoraHtml = inc.notas ? `<span class="section-label">Nota de quien reporta</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : "";
+  const notaLimpiadoraHtml = inc.notas ? `<span class="section-label">Nota de ${inc.reporter?.nombre || 'quien reporta'}</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : "";
   const autorAnterior = inc.notas_mantenimiento_autor_rol === "admin" ? "Admin" : "Mantenimiento";
 
   document.getElementById("sheet-detalle-body").innerHTML = `
@@ -720,11 +720,52 @@ async function abrirDetalle(id) {
       ${inc.notas_mantenimiento ? `<p style="font-size:11px;color:var(--slate);margin-top:4px">${autorAnterior} dijo: "${inc.notas_mantenimiento}"</p>` : ""}
     </div>
     <button class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
+    <span class="section-label">Conversación interna (admin ↔ mantenimiento)</span>
+    <div id="comentarios-lista" style="margin-bottom:10px;max-height:220px;overflow-y:auto">
+      ${comentariosInternosHtml(inc.comentarios_internos || [])}
+    </div>
+    <div class="field" style="margin-bottom:18px">
+      <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje interno..."></textarea>
+      <button class="btn btn-secondary btn-sm" onclick="enviarComentario(${id})" style="margin-top:6px">Enviar mensaje</button>
+    </div>
     <span class="section-label">Fotos</span>
     <div class="foto-grid">${fotosHtml}${addBtn}</div>
     <input type="file" id="foto-mant-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoMant(event,${id})">
   `;
   openSheet("sheet-detalle");
+}
+
+function comentariosInternosHtml(comentarios) {
+  if (!comentarios.length) return '<p style="font-size:12px;color:var(--slate)">Sin mensajes todavía.</p>';
+  return comentarios.map(c => {
+    const esAdmin = c.autor_rol === "admin";
+    const fecha = new Date(c.fecha);
+    const horaStr = fecha.toLocaleDateString("es-ES", {day:"2-digit",month:"2-digit"}) + " " + fecha.toLocaleTimeString("es-ES", {hour:"2-digit",minute:"2-digit"});
+    return `
+      <div style="background:${esAdmin?'var(--gold-bg)':'var(--slate-bg)'};border-radius:var(--r);padding:8px 10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:3px">
+          <span style="font-size:11px;font-weight:700;color:${esAdmin?'var(--gold)':'var(--ink)'}">${c.autor||''}${esAdmin?' · Admin':''}</span>
+          <span style="font-size:10px;color:var(--slate)">${horaStr}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.4">${c.texto}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function enviarComentario(id) {
+  const texto = document.getElementById("nuevo-comentario").value.trim();
+  if (!texto) return;
+  const r = await fetch(`${API}/api/incidencias/${id}/comentarios`, {
+    method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({texto})
+  });
+  if (r.ok) {
+    const upd = await r.json();
+    const idx = cache.findIndex(i => i.id === id);
+    if (idx >= 0) cache[idx] = upd;
+    abrirDetalle(id);
+  }
 }
 
 function selPrioDetalle(btn) {
