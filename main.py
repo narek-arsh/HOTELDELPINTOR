@@ -63,7 +63,6 @@ def init_db():
         if not existe:
             db.add(Usuario(
                 nombre="Administrador",
-                email="admin@hotelpintor.com",
                 username="admin",
                 password_hash=hash_password("Admin2024"),
                 rol=RolEnum.admin,
