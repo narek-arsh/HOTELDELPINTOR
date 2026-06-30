@@ -1,60 +1,68 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime, timedelta, timezone
+from jose import JWTError, jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from pydantic import BaseModel
 from app.database import get_db
 from app.models.models import Usuario
-from app.auth import verify_password, create_access_token, get_current_user
+import bcrypt
+import os
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+SECRET_KEY = os.getenv("SECRET_KEY", "dev_secret_key_change_in_prod")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 600))
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
-    usuario: dict
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
-@router.post("/login", response_model=TokenResponse)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
-    identificador = form_data.username.strip().lower()
+) -> Usuario:
+    exc = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token inválido o expirado",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise exc
+    except JWTError:
+        raise exc
 
     user = db.query(Usuario).filter(
-        func.lower(Usuario.username) == identificador,
+        Usuario.id == int(user_id),
         Usuario.activo == True
     ).first()
-
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario o contraseña incorrectos",
-        )
-
-    token = create_access_token({"sub": str(user.id), "rol": user.rol})
-
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "usuario": {
-            "id": user.id,
-            "nombre": user.nombre,
-            "username": user.username,
-            "rol": user.rol,
-            "planta": user.planta,
-        },
-    }
+    if user is None:
+        raise exc
+    return user
 
 
-@router.get("/me")
-def me(current_user: Usuario = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "nombre": current_user.nombre,
-        "username": current_user.username,
-        "rol": current_user.rol,
-        "planta": current_user.planta,
-    }
+def require_rol(*roles):
+    def checker(current_user: Usuario = Depends(get_current_user)):
+        if current_user.rol not in roles:
+            raise HTTPException(status_code=403, detail="Sin permisos")
+        return current_user
+    return checker
