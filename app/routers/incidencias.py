@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from app.database import get_db
 from app.models.models import (
-    Incidencia, CambioEstado, Usuario,
+    Incidencia, CambioEstado, Usuario, ComentarioInterno,
     EstadoEnum, TipoEnum, PrioridadEnum, RolEnum
 )
 from app.auth import get_current_user, require_rol
@@ -27,7 +27,8 @@ class CambioEstadoRequest(BaseModel):
     prioridad: Optional[PrioridadEnum] = None
 
 
-def inc_dict(inc: Incidencia) -> dict:
+def inc_dict(inc: Incidencia, current_user: Optional[Usuario] = None) -> dict:
+    es_staff = current_user and current_user.rol in (RolEnum.mantenimiento, RolEnum.admin)
     return {
         "id": inc.id,
         "codigo": inc.codigo,
@@ -63,6 +64,16 @@ def inc_dict(inc: Incidencia) -> dict:
             }
             for c in inc.cambios
         ],
+        "comentarios_internos": [
+            {
+                "id": c.id,
+                "texto": c.texto,
+                "fecha": c.creado_en,
+                "autor": c.usuario.nombre if c.usuario else None,
+                "autor_rol": c.usuario.rol if c.usuario else None,
+            }
+            for c in sorted(inc.comentarios_internos, key=lambda x: x.creado_en)
+        ] if es_staff else [],
     }
 
 
@@ -107,7 +118,7 @@ async def crear_incidencia(
     db.commit()
     db.refresh(inc)
 
-    payload = inc_dict(inc)
+    payload = inc_dict(inc, current_user)
     await manager.broadcast({"evento": "nueva_incidencia", "incidencia": payload})
     return payload
 
@@ -127,7 +138,7 @@ def listar_incidencias(
         q = q.filter(Incidencia.reporter_id == reporter_id)
     if estado:
         q = q.filter(Incidencia.estado == estado)
-    return [inc_dict(i) for i in q.order_by(Incidencia.creado_en.desc()).all()]
+    return [inc_dict(i, current_user) for i in q.order_by(Incidencia.creado_en.desc()).all()]
 
 
 @router.get("/{iid}")
@@ -141,7 +152,7 @@ def obtener_incidencia(
         raise HTTPException(status_code=404, detail="No encontrada")
     if current_user.rol == RolEnum.limpiadora and inc.reporter_id != current_user.id:
         raise HTTPException(status_code=403, detail="Sin acceso")
-    return inc_dict(inc)
+    return inc_dict(inc, current_user)
 
 
 @router.patch("/{iid}/estado")
@@ -183,7 +194,7 @@ async def cambiar_estado(
     db.commit()
     db.refresh(inc)
 
-    payload = inc_dict(inc)
+    payload = inc_dict(inc, current_user)
     await manager.broadcast({"evento": "estado_cambiado", "incidencia": payload})
     return payload
 
@@ -200,3 +211,38 @@ def eliminar(
     db.delete(inc)
     db.commit()
     return {"ok": True}
+
+
+# ── Comentarios internos (mantenimiento ↔ admin, privado) ─────────
+
+class ComentarioCreate(BaseModel):
+    texto: str
+
+
+@router.post("/{iid}/comentarios")
+async def crear_comentario(
+    iid: int,
+    data: ComentarioCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(
+        require_rol(RolEnum.mantenimiento, RolEnum.admin)
+    ),
+):
+    inc = db.query(Incidencia).filter(Incidencia.id == iid).first()
+    if not inc:
+        raise HTTPException(status_code=404, detail="No encontrada")
+    if not data.texto.strip():
+        raise HTTPException(status_code=400, detail="El comentario no puede estar vacío")
+
+    comentario = ComentarioInterno(
+        incidencia_id=iid,
+        usuario_id=current_user.id,
+        texto=data.texto.strip(),
+    )
+    db.add(comentario)
+    db.commit()
+    db.refresh(inc)
+
+    payload = inc_dict(inc, current_user)
+    await manager.broadcast({"evento": "nuevo_comentario", "incidencia": payload})
+    return payload
