@@ -8,6 +8,7 @@ from app.database import Base
 class RolEnum(str, enum.Enum):
     limpiadora = "limpiadora"
     mantenimiento = "mantenimiento"
+    gobernanta = "gobernanta"
     admin = "admin"
 
 
@@ -38,17 +39,25 @@ class Usuario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
-    email = Column(String(150), unique=True, index=True, nullable=False)
-    username = Column(String(50), unique=True, index=True, nullable=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     rol = Column(SAEnum(RolEnum), nullable=False)
-    edificio = Column(String(100), nullable=True)   # solo limpiadoras
-    planta = Column(String(50), nullable=True)       # solo limpiadoras
+    planta = Column(String(50), nullable=True)
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     incidencias = relationship("Incidencia", back_populates="reporter", foreign_keys="Incidencia.reporter_id")
     cambios_estado = relationship("CambioEstado", back_populates="usuario")
+
+
+class Habitacion(Base):
+    __tablename__ = "habitaciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    numero = Column(String(20), unique=True, index=True, nullable=False)
+    activa = Column(Boolean, default=True)
+    orden = Column(Integer, default=0)
+    creado_en = Column(DateTime, default=datetime.utcnow)
 
 
 class Incidencia(Base):
@@ -57,13 +66,14 @@ class Incidencia(Base):
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(20), unique=True, index=True)  # INC-2026-001
     habitacion = Column(String(20), nullable=False)
-    edificio = Column(String(100), nullable=True)
     tipo = Column(SAEnum(TipoEnum), nullable=False)
     descripcion = Column(Text, nullable=True)       # obligatorio si tipo=otro
     prioridad = Column(SAEnum(PrioridadEnum), default=PrioridadEnum.normal)
     estado = Column(SAEnum(EstadoEnum), default=EstadoEnum.recibido)
-    notas = Column(Text, nullable=True)  # nota original de la limpiadora, fija
-    notas_mantenimiento = Column(Text, nullable=True)  # nota de mantenimiento, editable
+
+    notas = Column(Text, nullable=True)                  # nota original de quien reporta, fija
+    notas_mantenimiento = Column(Text, nullable=True)     # nota de mantenimiento, editable
+    notas_mantenimiento_autor_rol = Column(String(20), nullable=True)  # 'mantenimiento' o 'admin'
 
     reporter_id = Column(Integer, ForeignKey("usuarios.id"))
     asignado_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
