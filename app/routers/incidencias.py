@@ -112,12 +112,16 @@ def tokens_de_usuario(db: Session, usuario_id: int) -> list[str]:
 def notificar(db: Session, tokens: list[str], titulo: str, cuerpo: str, data: dict = None):
     """Envía la notificación y borra de la base de datos cualquier token que Firebase marque como inválido."""
     if not tokens:
+        print(f"[notificar] Sin tokens destino para: {titulo}")
         return
+    print(f"[notificar] Enviando a {len(tokens)} token(s): {titulo}")
     resultado = enviar_notificacion(tokens, titulo, cuerpo, data)
+    print(f"[notificar] Resultado: {resultado}")
     invalidos = resultado.get("tokens_invalidos", [])
     if invalidos:
         db.query(DeviceToken).filter(DeviceToken.token.in_(invalidos)).delete(synchronize_session=False)
         db.commit()
+        print(f"[notificar] {len(invalidos)} token(s) inválido(s) eliminado(s)")
 
 
 @router.post("/")
