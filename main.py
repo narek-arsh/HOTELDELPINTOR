@@ -4,10 +4,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.database import engine
 from app.models.models import Base
-from app.routers import auth, incidencias, admin, websocket, fotos, perfil
+from app.routers import auth, incidencias, admin, websocket, fotos, perfil, notificaciones
 from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.models import Usuario, RolEnum
+from app.notifications import init_firebase
 from dotenv import load_dotenv
 import os
 
@@ -31,6 +32,7 @@ app.include_router(admin.router)
 app.include_router(websocket.router)
 app.include_router(fotos.router)
 app.include_router(perfil.router)
+app.include_router(notificaciones.router)
 
 PWA_DIR = os.path.join(os.path.dirname(__file__), "pwa")
 if os.path.exists(PWA_DIR):
@@ -41,6 +43,9 @@ if os.path.exists(PWA_DIR):
 
     @app.get("/sw.js")
     def sw(): return FileResponse(os.path.join(PWA_DIR, "sw.js"))
+
+    @app.get("/firebase-messaging-sw.js")
+    def fcm_sw(): return FileResponse(os.path.join(PWA_DIR, "firebase-messaging-sw.js"))
 
     @app.get("/icon-192.png")
     def icon192(): return FileResponse(os.path.join(PWA_DIR, "icon-192.png"))
@@ -57,6 +62,7 @@ else:
 
 @app.on_event("startup")
 def init_db():
+    init_firebase()
     db = SessionLocal()
     try:
         existe = db.query(Usuario).filter(Usuario.rol == RolEnum.admin).first()
