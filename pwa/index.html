@@ -715,7 +715,6 @@ async function abrirDetalle(id) {
   const prios = ["urgente","normal","baja"];
   const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
   const notaLimpiadoraHtml = inc.notas ? `<span class="section-label">Nota de ${inc.reporter?.nombre || 'quien reporta'}</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : "";
-  const autorAnterior = inc.notas_mantenimiento_autor_rol === "admin" ? "Admin" : "Mantenimiento";
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
@@ -729,20 +728,14 @@ async function abrirDetalle(id) {
     <div class="estado-grid" id="estado-grid-detalle" style="margin-bottom:14px">
       ${estados.map(e=>`<button class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
     </div>
-    <div class="field" style="margin-bottom:14px">
-      <label class="field-label">Nota para quien reportó (opcional)</label>
-      <textarea id="nota-mant" rows="2" placeholder="Ej: pedido el repuesto, llega el jueves..."></textarea>
-      ${inc.notas_mantenimiento ? `<p style="font-size:11px;color:var(--slate);margin-top:4px">${autorAnterior} dijo: "${inc.notas_mantenimiento}"</p>` : ""}
-    </div>
-    <button class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
-    <span class="section-label">Conversación interna (admin ↔ mantenimiento)</span>
+    <span class="section-label">Conversación</span>
     <div id="comentarios-lista" style="margin-bottom:10px;max-height:220px;overflow-y:auto">
       ${comentariosInternosHtml(inc.comentarios_internos || [])}
     </div>
-    <div class="field" style="margin-bottom:18px">
-      <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje interno..."></textarea>
-      <button class="btn btn-secondary btn-sm" onclick="enviarComentario(${id})" style="margin-top:6px">Enviar mensaje</button>
+    <div class="field" style="margin-bottom:14px">
+      <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
     </div>
+    <button class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
     <span class="section-label">Fotos</span>
     <div class="foto-grid">${fotosHtml}${addBtn}</div>
     <input type="file" id="foto-mant-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoMant(event,${id})">
@@ -768,19 +761,13 @@ function comentariosInternosHtml(comentarios) {
   }).join("");
 }
 
-async function enviarComentario(id) {
-  const texto = document.getElementById("nuevo-comentario").value.trim();
-  if (!texto) return;
+async function enviarComentario(id, texto) {
   const r = await fetch(`${API}/api/incidencias/${id}/comentarios`, {
     method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
     body: JSON.stringify({texto})
   });
-  if (r.ok) {
-    const upd = await r.json();
-    const idx = cache.findIndex(i => i.id === id);
-    if (idx >= 0) cache[idx] = upd;
-    abrirDetalle(id);
-  }
+  if (r.ok) return await r.json();
+  return null;
 }
 
 function selPrioDetalle(btn) {
@@ -795,18 +782,24 @@ function selEstadoDetalle(btn) {
 }
 
 async function guardarEstado(id) {
-  const nota = document.getElementById("nota-mant").value.trim();
+  const texto = document.getElementById("nuevo-comentario").value.trim();
+
   const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
     method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
-    body: JSON.stringify({estado: estadoPendiente, nota: nota || null, prioridad: prioPendiente})
+    body: JSON.stringify({estado: estadoPendiente, prioridad: prioPendiente})
   });
-  if (r.ok) {
-    const upd = await r.json();
-    const idx = cache.findIndex(i => i.id === id);
-    if (idx >= 0) cache[idx] = upd;
-    closeSheet("sheet-detalle");
-    renderTodas();
+  if (!r.ok) return;
+  let upd = await r.json();
+
+  if (texto) {
+    const upd2 = await enviarComentario(id, texto);
+    if (upd2) upd = upd2;
   }
+
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  closeSheet("sheet-detalle");
+  renderTodas();
 }
 
 function triggerFotoMant() { document.getElementById("foto-mant-inp").click(); }
