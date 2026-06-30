@@ -18,7 +18,6 @@ class IncidenciaCreate(BaseModel):
     habitacion: str
     tipo: TipoEnum
     descripcion: Optional[str] = None
-    prioridad: PrioridadEnum = PrioridadEnum.normal
     notas: Optional[str] = None
 
 
@@ -33,18 +32,18 @@ def inc_dict(inc: Incidencia) -> dict:
         "id": inc.id,
         "codigo": inc.codigo,
         "habitacion": inc.habitacion,
-        "edificio": inc.edificio,
         "tipo": inc.tipo,
         "descripcion": inc.descripcion,
         "prioridad": inc.prioridad,
         "estado": inc.estado,
         "notas": inc.notas,
         "notas_mantenimiento": inc.notas_mantenimiento,
+        "notas_mantenimiento_autor_rol": inc.notas_mantenimiento_autor_rol,
         "reporter": {
             "id": inc.reporter.id,
             "nombre": inc.reporter.nombre,
             "planta": inc.reporter.planta,
-            "edificio": inc.reporter.edificio,
+            "rol": inc.reporter.rol,
         } if inc.reporter else None,
         "asignado": {
             "id": inc.asignado.id,
@@ -78,7 +77,7 @@ async def crear_incidencia(
     data: IncidenciaCreate,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(
-        require_rol(RolEnum.limpiadora, RolEnum.mantenimiento, RolEnum.admin)
+        require_rol(RolEnum.limpiadora, RolEnum.gobernanta, RolEnum.mantenimiento, RolEnum.admin)
     ),
 ):
     if data.tipo == TipoEnum.otro and not data.descripcion:
@@ -87,10 +86,9 @@ async def crear_incidencia(
     inc = Incidencia(
         codigo=gen_codigo(db),
         habitacion=data.habitacion,
-        edificio=current_user.edificio,
         tipo=data.tipo,
         descripcion=data.descripcion,
-        prioridad=data.prioridad,
+        prioridad=PrioridadEnum.normal,
         notas=data.notas,
         estado=EstadoEnum.recibido,
         reporter_id=current_user.id,
@@ -117,12 +115,16 @@ async def crear_incidencia(
 @router.get("/")
 def listar_incidencias(
     estado: Optional[str] = None,
+    reporter_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user),
 ):
     q = db.query(Incidencia)
+    # Limpiadora solo ve lo suyo. Gobernanta, mantenimiento y admin ven todo.
     if current_user.rol == RolEnum.limpiadora:
         q = q.filter(Incidencia.reporter_id == current_user.id)
+    elif reporter_id is not None and current_user.rol == RolEnum.admin:
+        q = q.filter(Incidencia.reporter_id == reporter_id)
     if estado:
         q = q.filter(Incidencia.estado == estado)
     return [inc_dict(i) for i in q.order_by(Incidencia.creado_en.desc()).all()]
@@ -161,6 +163,7 @@ async def cambiar_estado(
 
     if data.nota is not None:
         inc.notas_mantenimiento = data.nota
+        inc.notas_mantenimiento_autor_rol = current_user.rol
 
     if data.prioridad is not None:
         inc.prioridad = data.prioridad
