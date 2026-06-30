@@ -5,13 +5,23 @@ from typing import Optional
 from datetime import datetime, timezone
 from app.database import get_db
 from app.models.models import (
-    Incidencia, CambioEstado, Usuario, ComentarioInterno,
+    Incidencia, CambioEstado, Usuario, ComentarioInterno, DeviceToken,
     EstadoEnum, TipoEnum, PrioridadEnum, RolEnum
 )
 from app.auth import get_current_user, require_rol
 from app.websocket_manager import manager
+from app.notifications import enviar_notificacion
 
 router = APIRouter(prefix="/api/incidencias", tags=["incidencias"])
+
+TIPO_LABELS = {
+    "bombilla": "Cambio de bombilla",
+    "puerta": "Puerta / cerradura",
+    "fontaneria": "Fontanería",
+    "calefaccion": "Calefacción / Aire",
+    "mueble": "Mobiliario",
+    "otro": "Otro",
+}
 
 
 class IncidenciaCreate(BaseModel):
@@ -28,7 +38,9 @@ class CambioEstadoRequest(BaseModel):
 
 
 def inc_dict(inc: Incidencia, current_user: Optional[Usuario] = None) -> dict:
-    es_staff = current_user and current_user.rol in (RolEnum.mantenimiento, RolEnum.admin)
+    es_staff = current_user and current_user.rol in (RolEnum.mantenimiento, RolEnum.admin, RolEnum.gobernanta)
+    es_reportante = current_user and inc.reporter_id == current_user.id
+    puede_ver_chat = es_staff or es_reportante
     return {
         "id": inc.id,
         "codigo": inc.codigo,
@@ -73,7 +85,7 @@ def inc_dict(inc: Incidencia, current_user: Optional[Usuario] = None) -> dict:
                 "autor_rol": c.usuario.rol if c.usuario else None,
             }
             for c in sorted(inc.comentarios_internos, key=lambda x: x.creado_en)
-        ] if es_staff else [],
+        ] if puede_ver_chat else [],
     }
 
 
@@ -81,6 +93,20 @@ def gen_codigo(db: Session) -> str:
     year = datetime.now(timezone.utc).year
     count = db.query(Incidencia).count() + 1
     return f"INC-{year}-{count:04d}"
+
+
+def tokens_de_roles(db: Session, roles: list) -> list[str]:
+    usuarios = db.query(Usuario).filter(Usuario.rol.in_(roles), Usuario.activo == True).all()
+    ids = [u.id for u in usuarios]
+    if not ids:
+        return []
+    tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id.in_(ids)).all()
+    return [t.token for t in tokens]
+
+
+def tokens_de_usuario(db: Session, usuario_id: int) -> list[str]:
+    tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id == usuario_id).all()
+    return [t.token for t in tokens]
 
 
 @router.post("/")
@@ -120,6 +146,18 @@ async def crear_incidencia(
 
     payload = inc_dict(inc, current_user)
     await manager.broadcast({"evento": "nueva_incidencia", "incidencia": payload})
+
+    # Notificación: admin, mantenimiento y gobernanta se enteran de toda incidencia nueva
+    tokens = tokens_de_roles(db, [RolEnum.mantenimiento, RolEnum.admin, RolEnum.gobernanta])
+    if tokens:
+        tipo_txt = inc.descripcion if inc.tipo == TipoEnum.otro else TIPO_LABELS.get(inc.tipo.value, inc.tipo.value)
+        enviar_notificacion(
+            tokens,
+            titulo=f"Hab. {inc.habitacion} — Nueva incidencia",
+            cuerpo=f"{current_user.nombre} reportó: {tipo_txt}",
+            data={"link": "/", "incidencia_id": str(inc.id)},
+        )
+
     return payload
 
 
@@ -196,6 +234,45 @@ async def cambiar_estado(
 
     payload = inc_dict(inc, current_user)
     await manager.broadcast({"evento": "estado_cambiado", "incidencia": payload})
+
+    estado_txt = {
+        "recibido": "marcada como recibida",
+        "en_curso": "en curso",
+        "esperando_material": "esperando material",
+        "resuelto": "resuelta",
+    }.get(data.estado.value, data.estado.value)
+
+    if data.estado == EstadoEnum.resuelto:
+        # Se resolvió: avisa a admin, gobernanta y a quien reportó (sea quien sea, salvo quien hizo el cambio)
+        destinatarios_ids = set()
+        for u in db.query(Usuario).filter(Usuario.rol.in_([RolEnum.admin, RolEnum.gobernanta]), Usuario.activo == True).all():
+            destinatarios_ids.add(u.id)
+        if inc.reporter_id:
+            destinatarios_ids.add(inc.reporter_id)
+        destinatarios_ids.discard(current_user.id)
+
+        if destinatarios_ids:
+            tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id.in_(destinatarios_ids)).all()
+            tokens = [t.token for t in tokens]
+            if tokens:
+                enviar_notificacion(
+                    tokens,
+                    titulo=f"Hab. {inc.habitacion} resuelta",
+                    cuerpo=data.nota if data.nota else f"{current_user.nombre} marcó la incidencia como resuelta",
+                    data={"link": "/", "incidencia_id": str(inc.id)},
+                )
+    else:
+        # Cambio intermedio (estado o prioridad) por mantenimiento o admin: se avisan entre ellos
+        rol_contrario = RolEnum.admin if current_user.rol == RolEnum.mantenimiento else RolEnum.mantenimiento
+        tokens = tokens_de_roles(db, [rol_contrario])
+        if tokens:
+            enviar_notificacion(
+                tokens,
+                titulo=f"Hab. {inc.habitacion} {estado_txt}",
+                cuerpo=data.nota if data.nota else f"{current_user.nombre} actualizó la incidencia",
+                data={"link": "/", "incidencia_id": str(inc.id)},
+            )
+
     return payload
 
 
@@ -245,4 +322,27 @@ async def crear_comentario(
 
     payload = inc_dict(inc, current_user)
     await manager.broadcast({"evento": "nuevo_comentario", "incidencia": payload})
+
+    # Notifica a admin, mantenimiento, gobernanta y quien reportó — todos menos quien escribió
+    destinatarios_ids = set()
+    for u in db.query(Usuario).filter(
+        Usuario.rol.in_([RolEnum.admin, RolEnum.mantenimiento, RolEnum.gobernanta]),
+        Usuario.activo == True
+    ).all():
+        destinatarios_ids.add(u.id)
+    if inc.reporter_id:
+        destinatarios_ids.add(inc.reporter_id)
+    destinatarios_ids.discard(current_user.id)
+
+    if destinatarios_ids:
+        tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id.in_(destinatarios_ids)).all()
+        tokens = [t.token for t in tokens]
+        if tokens:
+            enviar_notificacion(
+                tokens,
+                titulo=f"Hab. {inc.habitacion} — Nuevo mensaje",
+                cuerpo=f"{current_user.nombre}: {data.texto.strip()[:80]}",
+                data={"link": "/", "incidencia_id": str(inc.id)},
+            )
+
     return payload
