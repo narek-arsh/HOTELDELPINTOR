@@ -93,7 +93,7 @@
     .badge-en_curso           { background: var(--gold-bg);  color: var(--gold); }
     .badge-esperando_material { background: #EDF0F5; color: #4A5A72; }
     .badge-resuelto           { background: var(--emer-bg);  color: var(--emerald); }
-    .badge-archivado          { background: #F0F0F0; color: #999; }
+    .badge-archivado          { display: none; }
     .badge-urgente { background: var(--crim-bg); color: var(--crimson); }
     .badge-normal  { background: var(--gold-bg); color: var(--gold); }
     .badge-baja    { background: var(--emer-bg); color: var(--emerald); }
@@ -120,7 +120,6 @@
     .estado-btn.sel-en_curso           { border-color: var(--gold);    background: var(--gold-bg);  color: var(--gold); }
     .estado-btn.sel-esperando_material { border-color: #4A5A72; background: #EDF0F5; color: #4A5A72; }
     .estado-btn.sel-resuelto           { border-color: var(--emerald); background: var(--emer-bg);  color: var(--emerald); }
-    .estado-btn.sel-archivado          { border-color: #999; background: #F0F0F0; color: #999; }
 
     /* Modal */
     .overlay { display: none; position: fixed; inset: 0; background: #0008; z-index: 200; align-items: flex-end; }
@@ -291,9 +290,9 @@
     <div id="todas-lista"><div class="loading">Cargando...</div></div>
   </div>
 
-  <div id="tab-mant-perfil" class="content" style="display:none">
-    <span class="section-label">Mi perfil</span>
-    <div id="mant-perfil-content"></div>
+  <div id="tab-resueltas" class="content" style="display:none">
+    <span class="section-label">Incidencias resueltas</span>
+    <div id="resueltas-lista"><div class="loading">Cargando...</div></div>
   </div>
 
   <nav class="bottom-nav">
@@ -301,9 +300,9 @@
       <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
       Incidencias
     </button>
-    <button class="nav-btn" id="nav-mant-perfil" onclick="showTabMant('mant-perfil')">
-      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Perfil
+    <button class="nav-btn" id="nav-resueltas" onclick="showTabMant('resueltas')">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      Resueltas
     </button>
   </nav>
 </div>
@@ -346,7 +345,7 @@ let cache = [];
 
 const ESTADOS = {
   recibido: "Recibido", en_curso: "En curso",
-  esperando_material: "Esperando material", resuelto: "Resuelto", archivado: "Archivado"
+  esperando_material: "Esperando material", resuelto: "Resuelto"
 };
 const TIPOS = {
   bombilla:"Cambio de bombilla", puerta:"Puerta / cerradura",
@@ -396,16 +395,10 @@ function showApp() {
     buildFiltros();
     cargarTodas();
     setInterval(cargarTodas, 30000);
-  } else if (usuario.rol === "admin") {
-    document.getElementById("mant-sub").textContent = usuario.nombre + " · Admin";
-    showScreen("mantenimiento");
-    buildFiltros();
-    cargarTodas();
-    setInterval(cargarTodas, 30000);
   } else {
     showScreen("login");
     const e = document.getElementById("login-err");
-    e.textContent = "Usuario no autorizado.";
+    e.textContent = "Accede desde el panel de administración.";
     e.style.display = "block";
   }
 }
@@ -425,11 +418,11 @@ function showTab(t) {
   if (t === "mis") cargarMis();
 }
 function showTabMant(t) {
-  ["todas","mant-perfil"].forEach(x => {
+  ["todas","resueltas"].forEach(x => {
     document.getElementById("tab-"+x).style.display = x===t ? "block" : "none";
     document.getElementById("nav-"+x).classList.toggle("active", x===t);
   });
-  if (t === "mant-perfil") buildMantPerfil();
+  if (t === "resueltas") cargarResueltas();
 }
 
 // ── Form ──────────────────────────────────────────────────────
@@ -517,14 +510,39 @@ async function cargarMis() {
   try {
     const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
     if (r.status === 401) { logout(); return; }
-    const data = await r.json();
-    l.innerHTML = data.length ? data.map(cardHtml).join("") : '<div class="empty">No has enviado ningún aviso todavía.</div>';
+    cache = await r.json();
+    l.innerHTML = cache.length ? cache.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">No has enviado ningún aviso todavía.</div>';
   } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+function verDetalleLimpiadora(id) {
+  const inc = cache.find(i => i.id === id);
+  if (!inc) return;
+  const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
+  const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
+
+  document.getElementById("sheet-detalle-body").innerHTML = `
+    <div class="sheet-title">
+      Hab. ${inc.habitacion} — ${tipo}
+      <button class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button>
+    </div>
+    <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""}</p>
+    <span class="section-label">Estado</span>
+    <div style="margin-bottom:16px">
+      <span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span>
+    </div>
+    ${inc.notas_mantenimiento ? `
+      <span class="section-label">Nota de mantenimiento</span>
+      <p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas_mantenimiento}</p>
+    ` : ""}
+    ${fotos ? `<span class="section-label">Fotos</span><div class="foto-grid">${fotos}</div>` : ""}
+  `;
+  openSheet("sheet-detalle");
 }
 
 // ── Todas (mantenimiento) ─────────────────────────────────────
 function buildFiltros() {
-  const opts = [["todos","Todos"],["recibido","Recibidos"],["en_curso","En curso"],["esperando_material","Esperando"],["resuelto","Resueltos"]];
+  const opts = [["todos","Todos"],["recibido","Recibidos"],["en_curso","En curso"],["esperando_material","Esperando"]];
   document.getElementById("filtros").innerHTML = opts.map(([k,l]) => `
     <button onclick="setFiltro('${k}')" id="f-${k}" style="padding:5px 10px;border-radius:3px;border:1px solid var(--border);background:${k===filtroSel?'var(--ink)':'var(--surface)'};color:${k===filtroSel?'#fff':'var(--slate)'};font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.2px">${l}</button>
   `).join("");
@@ -541,20 +559,35 @@ async function cargarTodas() {
 }
 function renderTodas() {
   const l = document.getElementById("todas-lista");
-  const incs = filtroSel === "todos" ? cache : cache.filter(i => i.estado === filtroSel);
-  l.innerHTML = incs.length ? incs.map(i => cardHtml(i, true)).join("") : '<div class="empty">Sin incidencias en esta categoría.</div>';
+  let incs = cache.filter(i => i.estado !== "resuelto");
+  if (filtroSel !== "todos") incs = incs.filter(i => i.estado === filtroSel);
+  l.innerHTML = incs.length ? incs.map(i => cardHtml(i, true, true)).join("") : '<div class="empty">Sin incidencias en esta categoría.</div>';
+}
+
+async function cargarResueltas() {
+  const l = document.getElementById("resueltas-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    cache = await r.json();
+    const resueltas = cache.filter(i => i.estado === "resuelto");
+    l.innerHTML = resueltas.length ? resueltas.map(i => cardHtml(i, true, true)).join("") : '<div class="empty">No hay incidencias resueltas todavía.</div>';
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
 }
 
 // ── Card ──────────────────────────────────────────────────────
-function cardHtml(inc, withAction = false) {
-  const bc = {recibido:"var(--slate)",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)",archivado:"#ccc"}[inc.estado]||"var(--slate)";
+function cardHtml(inc, withAction = false, mantView = false) {
+  const bc = {recibido:"var(--slate)",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
   const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const rep = inc.reporter || {};
   const fecha = new Date(inc.creado_en);
   const diff = Math.floor((Date.now()-fecha)/60000);
   const ft = diff < 60 ? `hace ${diff}m` : diff < 1440 ? `hace ${Math.floor(diff/60)}h` : fecha.toLocaleDateString("es-ES");
   const fotos = (inc.fotos||[]).map(f=>`<img src="${f.url}" onclick="openFotoViewer('${f.url}')" style="width:44px;height:44px;object-fit:cover;border-radius:3px;border:1px solid var(--border);cursor:pointer">`).join("");
-  const btn = withAction ? `<button onclick="abrirDetalle(${inc.id})" style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--slate-bg);font-size:11px;font-weight:600;color:var(--ink);cursor:pointer;letter-spacing:0.2px">Ver y gestionar</button>` : "";
+  const btnLabel = mantView ? "Gestionar" : "Ver detalle";
+  const btnFn = mantView ? `abrirDetalle(${inc.id})` : `verDetalleLimpiadora(${inc.id})`;
+  const btn = withAction ? `<button onclick="${btnFn}" style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--slate-bg);font-size:11px;font-weight:600;color:var(--ink);cursor:pointer;letter-spacing:0.2px">${btnLabel}</button>` : "";
   return `<div class="card" style="border-left:3px solid ${bc}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div>
@@ -574,14 +607,17 @@ function cardHtml(inc, withAction = false) {
 }
 
 // ── Detalle (mantenimiento) ───────────────────────────────────
+let estadoPendiente = null;
+
 async function abrirDetalle(id) {
   const inc = cache.find(i => i.id === id);
   if (!inc) return;
+  estadoPendiente = inc.estado;
   const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const fotos = inc.fotos||[];
   const fotosHtml = fotos.map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const addBtn = fotos.length < 3 ? `<div class="foto-add" onclick="triggerFotoMant(${id})" style="aspect-ratio:1;max-width:72px"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span></div>` : "";
-  const estados = ["recibido","en_curso","esperando_material","resuelto","archivado"];
+  const estados = ["recibido","en_curso","esperando_material","resuelto"];
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">
@@ -590,17 +626,44 @@ async function abrirDetalle(id) {
     </div>
     <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""} · ${inc.reporter?.nombre||""} · ${inc.reporter?.planta||""}</p>
     <span class="section-label">Estado</span>
-    <div class="estado-grid" style="margin-bottom:18px">
-      ${estados.map(e=>`<button class="estado-btn ${inc.estado===e?'sel-'+e:''}" onclick="cambiarEstado(${id},'${e}')">${ESTADOS[e]}</button>`).join("")}
+    <div class="estado-grid" id="estado-grid-detalle" style="margin-bottom:14px">
+      ${estados.map(e=>`<button class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
     </div>
+    <div class="field" style="margin-bottom:14px">
+      <label class="field-label">Nota para la limpiadora (opcional)</label>
+      <textarea id="nota-mant" rows="2" placeholder="Ej: pedido el repuesto, llega el jueves...">${inc.notas_mantenimiento||""}</textarea>
+    </div>
+    <button class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
     <span class="section-label">Fotos</span>
-    <div class="foto-grid" style="margin-bottom:16px">
+    <div class="foto-grid">
       ${fotosHtml}${addBtn}
     </div>
     <input type="file" id="foto-mant-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoMant(event,${id})">
-    ${inc.notas_mantenimiento?`<p style="font-size:12px;color:var(--slate)">${inc.notas_mantenimiento}</p>`:""}
   `;
   openSheet("sheet-detalle");
+}
+
+function selEstadoDetalle(btn) {
+  document.querySelectorAll("#estado-grid-detalle .estado-btn").forEach(b => {
+    b.className = "estado-btn";
+  });
+  btn.classList.add("sel-" + btn.dataset.estado);
+  estadoPendiente = btn.dataset.estado;
+}
+
+async function guardarEstado(id) {
+  const nota = document.getElementById("nota-mant").value.trim();
+  const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({estado: estadoPendiente, nota: nota || null})
+  });
+  if (r.ok) {
+    const upd = await r.json();
+    const idx = cache.findIndex(i => i.id === id);
+    if (idx >= 0) cache[idx] = upd;
+    closeSheet("sheet-detalle");
+    renderTodas();
+  }
 }
 
 function triggerFotoMant() { document.getElementById("foto-mant-inp").click(); }
@@ -616,20 +679,6 @@ async function onFotoMant(e, id) {
     abrirDetalle(id);
   }
   e.target.value = "";
-}
-
-async function cambiarEstado(id, estado) {
-  const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
-    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
-    body: JSON.stringify({estado})
-  });
-  if (r.ok) {
-    const upd = await r.json();
-    const idx = cache.findIndex(i => i.id === id);
-    if (idx >= 0) cache[idx] = upd;
-    renderTodas();
-    abrirDetalle(id);
-  }
 }
 
 // ── Cambio contraseña ─────────────────────────────────────────
@@ -655,23 +704,6 @@ async function cambiarPw() {
     document.getElementById("pw-nueva").value = "";
     document.getElementById("pw-conf").value = "";
   } catch { err.textContent = "Error de conexión."; err.style.display="block"; }
-}
-
-// ── Perfil mantenimiento ──────────────────────────────────────
-function buildMantPerfil() {
-  document.getElementById("mant-perfil-content").innerHTML = `
-    <div class="card" style="margin-bottom:20px">
-      <div style="font-weight:700;color:var(--ink);margin-bottom:3px">${usuario.nombre}</div>
-      <div style="font-size:12px;color:var(--slate)">Mantenimiento · ${usuario.username||usuario.email||""}</div>
-    </div>
-    <span class="section-label">Cambiar contraseña</span>
-    <div class="field"><label class="field-label">Contraseña actual</label><input type="password" id="pw-actual" placeholder="••••••"></div>
-    <div class="field"><label class="field-label">Nueva contraseña</label><input type="password" id="pw-nueva" placeholder="Mínimo 6 caracteres"></div>
-    <div class="field"><label class="field-label">Confirmar nueva</label><input type="password" id="pw-conf" placeholder="••••••"></div>
-    <div id="pw-err" class="err" style="display:none"></div>
-    <div id="pw-ok" class="ok" style="display:none">Contraseña actualizada correctamente</div>
-    <button class="btn btn-primary" onclick="cambiarPw()" style="margin-top:10px">Guardar cambios</button>
-  `;
 }
 
 // ── Sheets / Overlays ─────────────────────────────────────────
