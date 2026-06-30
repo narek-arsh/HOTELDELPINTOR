@@ -37,6 +37,7 @@ def inc_dict(inc: Incidencia) -> dict:
         "descripcion": inc.descripcion,
         "prioridad": inc.prioridad,
         "estado": inc.estado,
+        "notas": inc.notas,
         "notas_mantenimiento": inc.notas_mantenimiento,
         "reporter": {
             "id": inc.reporter.id,
@@ -89,7 +90,7 @@ async def crear_incidencia(
         tipo=data.tipo,
         descripcion=data.descripcion,
         prioridad=data.prioridad,
-        notas_mantenimiento=data.notas,
+        notas=data.notas,
         estado=EstadoEnum.recibido,
         reporter_id=current_user.id,
     )
@@ -156,6 +157,9 @@ async def cambiar_estado(
     anterior = inc.estado
     inc.estado = data.estado
     inc.actualizado_en = datetime.now(timezone.utc)
+
+    if data.nota is not None:
+        inc.notas_mantenimiento = data.nota
 
     if data.estado == EstadoEnum.resuelto:
         inc.resuelto_en = datetime.now(timezone.utc)
