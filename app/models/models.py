@@ -62,7 +62,8 @@ class Incidencia(Base):
     descripcion = Column(Text, nullable=True)       # obligatorio si tipo=otro
     prioridad = Column(SAEnum(PrioridadEnum), default=PrioridadEnum.normal)
     estado = Column(SAEnum(EstadoEnum), default=EstadoEnum.recibido)
-    notas_mantenimiento = Column(Text, nullable=True)
+    notas = Column(Text, nullable=True)  # nota original de la limpiadora, fija
+    notas_mantenimiento = Column(Text, nullable=True)  # nota de mantenimiento, editable
 
     reporter_id = Column(Integer, ForeignKey("usuarios.id"))
     asignado_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
