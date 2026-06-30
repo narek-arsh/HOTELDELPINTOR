@@ -16,7 +16,6 @@ class EstadoEnum(str, enum.Enum):
     en_curso = "en_curso"
     esperando_material = "esperando_material"
     resuelto = "resuelto"
-    archivado = "archivado"
 
 
 class PrioridadEnum(str, enum.Enum):
@@ -38,9 +37,9 @@ class Usuario(Base):
     __tablename__ = "usuarios"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, index=True, nullable=True)
     nombre = Column(String(100), nullable=False)
     email = Column(String(150), unique=True, index=True, nullable=False)
+    username = Column(String(50), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=False)
     rol = Column(SAEnum(RolEnum), nullable=False)
     edificio = Column(String(100), nullable=True)   # solo limpiadoras
