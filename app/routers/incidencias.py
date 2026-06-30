@@ -109,6 +109,17 @@ def tokens_de_usuario(db: Session, usuario_id: int) -> list[str]:
     return [t.token for t in tokens]
 
 
+def notificar(db: Session, tokens: list[str], titulo: str, cuerpo: str, data: dict = None):
+    """Envía la notificación y borra de la base de datos cualquier token que Firebase marque como inválido."""
+    if not tokens:
+        return
+    resultado = enviar_notificacion(tokens, titulo, cuerpo, data)
+    invalidos = resultado.get("tokens_invalidos", [])
+    if invalidos:
+        db.query(DeviceToken).filter(DeviceToken.token.in_(invalidos)).delete(synchronize_session=False)
+        db.commit()
+
+
 @router.post("/")
 async def crear_incidencia(
     data: IncidenciaCreate,
@@ -151,8 +162,8 @@ async def crear_incidencia(
     tokens = tokens_de_roles(db, [RolEnum.mantenimiento, RolEnum.admin, RolEnum.gobernanta])
     if tokens:
         tipo_txt = inc.descripcion if inc.tipo == TipoEnum.otro else TIPO_LABELS.get(inc.tipo.value, inc.tipo.value)
-        enviar_notificacion(
-            tokens,
+        notificar(
+            db, tokens,
             titulo=f"Hab. {inc.habitacion} — Nueva incidencia",
             cuerpo=f"{current_user.nombre} reportó: {tipo_txt}",
             data={"link": "/", "incidencia_id": str(inc.id)},
@@ -255,8 +266,8 @@ async def cambiar_estado(
             tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id.in_(destinatarios_ids)).all()
             tokens = [t.token for t in tokens]
             if tokens:
-                enviar_notificacion(
-                    tokens,
+                notificar(
+                    db, tokens,
                     titulo=f"Hab. {inc.habitacion} resuelta",
                     cuerpo=data.nota if data.nota else f"{current_user.nombre} marcó la incidencia como resuelta",
                     data={"link": "/", "incidencia_id": str(inc.id)},
@@ -266,8 +277,8 @@ async def cambiar_estado(
         rol_contrario = RolEnum.admin if current_user.rol == RolEnum.mantenimiento else RolEnum.mantenimiento
         tokens = tokens_de_roles(db, [rol_contrario])
         if tokens:
-            enviar_notificacion(
-                tokens,
+            notificar(
+                db, tokens,
                 titulo=f"Hab. {inc.habitacion} {estado_txt}",
                 cuerpo=data.nota if data.nota else f"{current_user.nombre} actualizó la incidencia",
                 data={"link": "/", "incidencia_id": str(inc.id)},
@@ -338,8 +349,8 @@ async def crear_comentario(
         tokens = db.query(DeviceToken).filter(DeviceToken.usuario_id.in_(destinatarios_ids)).all()
         tokens = [t.token for t in tokens]
         if tokens:
-            enviar_notificacion(
-                tokens,
+            notificar(
+                db, tokens,
                 titulo=f"Hab. {inc.habitacion} — Nuevo mensaje",
                 cuerpo=f"{current_user.nombre}: {data.texto.strip()[:80]}",
                 data={"link": "/", "incidencia_id": str(inc.id)},
