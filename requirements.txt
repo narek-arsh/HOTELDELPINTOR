@@ -10,3 +10,4 @@ websockets==13.1
 pydantic[email]==2.10.6
 aiofiles==23.2.1
 cloudinary==1.40.0
+firebase-admin==6.5.0
