@@ -113,3 +113,17 @@ class FotoIncidencia(Base):
 
     incidencia = relationship("Incidencia", backref="fotos")
     subida_por = relationship("Usuario", foreign_keys=[subida_por_id])
+
+
+class ComentarioInterno(Base):
+    """Hilo de comentarios privado entre mantenimiento y admin, no visible para quien reporta."""
+    __tablename__ = "comentarios_internos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    incidencia_id = Column(Integer, ForeignKey("incidencias.id"))
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"))
+    texto = Column(Text, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    incidencia = relationship("Incidencia", backref="comentarios_internos")
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
