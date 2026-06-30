@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, messaging
 
 _initialized = False
+APP_URL = "https://hoteldelpintor-production.up.railway.app"
 
 
 def init_firebase():
@@ -50,7 +51,7 @@ def enviar_notificacion(tokens: list[str], titulo: str, cuerpo: str, data: dict 
                         icon="/icon-192.png",
                     ),
                     fcm_options=messaging.WebpushFCMOptions(
-                        link=data.get("link", "/") if data else "/"
+                        link=APP_URL + (data.get("link", "/") if data else "/")
                     ),
                 ),
             )
