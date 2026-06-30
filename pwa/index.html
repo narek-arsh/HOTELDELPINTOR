@@ -216,15 +216,6 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Prioridad</label>
-        <div class="prio-row">
-          <button class="prio-btn prio-urgente" data-prio="urgente" onclick="selPrio(this)">Urgente</button>
-          <button class="prio-btn prio-normal sel-normal" data-prio="normal" onclick="selPrio(this)">Normal</button>
-          <button class="prio-btn prio-baja" data-prio="baja" onclick="selPrio(this)">Sin prisa</button>
-        </div>
-      </div>
-
-      <div class="field">
         <label class="field-label">Fotos (máx. 3)</label>
         <div class="foto-grid" id="fotos-grid">
           <div class="foto-add" onclick="document.getElementById('foto-input').click()">
@@ -432,10 +423,6 @@ function selTipo(btn) {
   document.getElementById("otro-box").style.display = tipoSel === "otro" ? "block" : "none";
   if (tipoSel === "otro") document.getElementById("f-desc").focus();
 }
-function selPrio(btn) {
-  document.querySelectorAll(".prio-btn").forEach(b => b.className = b.className.replace(/\bsel-\S+/g, ""));
-  btn.classList.add("sel-" + btn.dataset.prio); prioSel = btn.dataset.prio;
-}
 
 function onFotoSel(e) {
   for (const f of e.target.files) { if (fotosNuevas.length < 3) fotosNuevas.push(f); }
@@ -612,16 +599,25 @@ function cardHtml(inc, withAction = false, mantView = false) {
 
 // ── Detalle (mantenimiento) ───────────────────────────────────
 let estadoPendiente = null;
+let prioPendiente = null;
 
 async function abrirDetalle(id) {
   const inc = cache.find(i => i.id === id);
   if (!inc) return;
   estadoPendiente = inc.estado;
+  prioPendiente = inc.prioridad;
   const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const fotos = inc.fotos||[];
   const fotosHtml = fotos.map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const addBtn = fotos.length < 3 ? `<div class="foto-add" onclick="triggerFotoMant(${id})" style="aspect-ratio:1;max-width:72px"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span></div>` : "";
   const estados = ["recibido","en_curso","esperando_material","resuelto"];
+  const prios = ["urgente","normal","baja"];
+  const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
+
+  if (inc.notas) {
+    var notaLimpiadoraHtml = `<span class="section-label">Nota de la limpiadora</span>
+      <p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>`;
+  } else { var notaLimpiadoraHtml = ""; }
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">
@@ -629,6 +625,11 @@ async function abrirDetalle(id) {
       <button class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button>
     </div>
     <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""} · ${inc.reporter?.nombre||""} · ${inc.reporter?.planta||""}</p>
+    ${notaLimpiadoraHtml}
+    <span class="section-label">Prioridad</span>
+    <div class="prio-row" id="prio-grid-detalle" style="margin-bottom:14px">
+      ${prios.map(p=>`<button class="prio-btn prio-${p} ${inc.prioridad===p?'sel-'+p:''}" data-prio="${p}" onclick="selPrioDetalle(this)">${prioLabels[p]}</button>`).join("")}
+    </div>
     <span class="section-label">Estado</span>
     <div class="estado-grid" id="estado-grid-detalle" style="margin-bottom:14px">
       ${estados.map(e=>`<button class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
@@ -648,6 +649,14 @@ async function abrirDetalle(id) {
   openSheet("sheet-detalle");
 }
 
+function selPrioDetalle(btn) {
+  document.querySelectorAll("#prio-grid-detalle .prio-btn").forEach(b => {
+    b.className = "prio-btn prio-" + b.dataset.prio;
+  });
+  btn.classList.add("sel-" + btn.dataset.prio);
+  prioPendiente = btn.dataset.prio;
+}
+
 function selEstadoDetalle(btn) {
   document.querySelectorAll("#estado-grid-detalle .estado-btn").forEach(b => {
     b.className = "estado-btn";
@@ -660,7 +669,7 @@ async function guardarEstado(id) {
   const nota = document.getElementById("nota-mant").value.trim();
   const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
     method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
-    body: JSON.stringify({estado: estadoPendiente, nota: nota || null})
+    body: JSON.stringify({estado: estadoPendiente, nota: nota || null, prioridad: prioPendiente})
   });
   if (r.ok) {
     const upd = await r.json();
