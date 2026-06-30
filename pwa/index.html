@@ -396,10 +396,16 @@ function showApp() {
     buildFiltros();
     cargarTodas();
     setInterval(cargarTodas, 30000);
+  } else if (usuario.rol === "admin") {
+    document.getElementById("mant-sub").textContent = usuario.nombre + " · Admin";
+    showScreen("mantenimiento");
+    buildFiltros();
+    cargarTodas();
+    setInterval(cargarTodas, 30000);
   } else {
     showScreen("login");
     const e = document.getElementById("login-err");
-    e.textContent = "Accede desde el panel de administración.";
+    e.textContent = "Usuario no autorizado.";
     e.style.display = "block";
   }
 }
