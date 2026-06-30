@@ -1,31 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
 from app.database import get_db
-from app.models.models import Usuario, Incidencia, RolEnum
+from app.models.models import Usuario, Incidencia, Habitacion, RolEnum
 from app.auth import hash_password, require_rol
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+# ── Usuarios ─────────────────────────────────────────────────────
+
 class UsuarioCreate(BaseModel):
     nombre: str
-    email: EmailStr
-    username: Optional[str] = None
+    username: str
     password: str
     rol: RolEnum
-    edificio: Optional[str] = None
     planta: Optional[str] = None
 
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
-    email: Optional[EmailStr] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    edificio: Optional[str] = None
     planta: Optional[str] = None
     activo: Optional[bool] = None
 
@@ -34,10 +32,8 @@ def usuario_dict(u: Usuario) -> dict:
     return {
         "id": u.id,
         "nombre": u.nombre,
-        "email": u.email,
         "username": u.username,
         "rol": u.rol,
-        "edificio": u.edificio,
         "planta": u.planta,
         "activo": u.activo,
         "creado_en": u.creado_en,
@@ -59,18 +55,17 @@ def crear_usuario(
     db: Session = Depends(get_db),
     _=Depends(require_rol(RolEnum.admin)),
 ):
-    if db.query(Usuario).filter(Usuario.email == data.email).first():
-        raise HTTPException(status_code=400, detail="Email ya registrado")
-    if data.username and db.query(Usuario).filter(Usuario.username == data.username).first():
+    username_norm = data.username.strip().lower()
+    if not username_norm:
+        raise HTTPException(status_code=400, detail="Username obligatorio")
+    if db.query(Usuario).filter(func.lower(Usuario.username) == username_norm).first():
         raise HTTPException(status_code=400, detail="Username ya en uso")
 
     u = Usuario(
         nombre=data.nombre,
-        email=data.email,
-        username=data.username or None,
+        username=username_norm,
         password_hash=hash_password(data.password),
         rol=data.rol,
-        edificio=data.edificio,
         planta=data.planta,
     )
     db.add(u)
@@ -90,13 +85,22 @@ def actualizar_usuario(
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    if data.nombre is not None: u.nombre = data.nombre
-    if data.email is not None: u.email = data.email
-    if data.username is not None: u.username = data.username
-    if data.password is not None: u.password_hash = hash_password(data.password)
-    if data.edificio is not None: u.edificio = data.edificio
-    if data.planta is not None: u.planta = data.planta
-    if data.activo is not None: u.activo = data.activo
+    if data.nombre is not None:
+        u.nombre = data.nombre
+    if data.username is not None:
+        username_norm = data.username.strip().lower()
+        existe = db.query(Usuario).filter(
+            func.lower(Usuario.username) == username_norm, Usuario.id != uid
+        ).first()
+        if existe:
+            raise HTTPException(status_code=400, detail="Username ya en uso")
+        u.username = username_norm
+    if data.password is not None:
+        u.password_hash = hash_password(data.password)
+    if data.planta is not None:
+        u.planta = data.planta
+    if data.activo is not None:
+        u.activo = data.activo
 
     db.commit()
     return usuario_dict(u)
@@ -115,6 +119,95 @@ def desactivar_usuario(
     db.commit()
     return {"ok": True}
 
+
+# ── Habitaciones ─────────────────────────────────────────────────
+
+class HabitacionCreate(BaseModel):
+    numero: str
+
+
+class HabitacionesBulkCreate(BaseModel):
+    numeros: List[str]
+
+
+def habitacion_dict(h: Habitacion) -> dict:
+    return {"id": h.id, "numero": h.numero, "activa": h.activa}
+
+
+@router.get("/habitaciones")
+def listar_habitaciones(
+    db: Session = Depends(get_db),
+    _=Depends(require_rol(RolEnum.admin, RolEnum.limpiadora, RolEnum.gobernanta, RolEnum.mantenimiento)),
+):
+    habs = db.query(Habitacion).filter(Habitacion.activa == True).order_by(Habitacion.orden, Habitacion.numero).all()
+    return [habitacion_dict(h) for h in habs]
+
+
+@router.post("/habitaciones")
+def crear_habitacion(
+    data: HabitacionCreate,
+    db: Session = Depends(get_db),
+    _=Depends(require_rol(RolEnum.admin)),
+):
+    numero = data.numero.strip()
+    if not numero:
+        raise HTTPException(status_code=400, detail="Número obligatorio")
+    existente = db.query(Habitacion).filter(Habitacion.numero == numero).first()
+    if existente:
+        if not existente.activa:
+            existente.activa = True
+            db.commit()
+            return habitacion_dict(existente)
+        raise HTTPException(status_code=400, detail="Esa habitación ya existe")
+    max_orden = db.query(Habitacion).count()
+    h = Habitacion(numero=numero, orden=max_orden)
+    db.add(h)
+    db.commit()
+    db.refresh(h)
+    return habitacion_dict(h)
+
+
+@router.post("/habitaciones/bulk")
+def crear_habitaciones_bulk(
+    data: HabitacionesBulkCreate,
+    db: Session = Depends(get_db),
+    _=Depends(require_rol(RolEnum.admin)),
+):
+    creadas = []
+    max_orden = db.query(Habitacion).count()
+    for numero in data.numeros:
+        numero = numero.strip()
+        if not numero:
+            continue
+        existente = db.query(Habitacion).filter(Habitacion.numero == numero).first()
+        if existente:
+            if not existente.activa:
+                existente.activa = True
+                creadas.append(numero)
+            continue
+        h = Habitacion(numero=numero, orden=max_orden)
+        db.add(h)
+        max_orden += 1
+        creadas.append(numero)
+    db.commit()
+    return {"creadas": creadas, "total": len(creadas)}
+
+
+@router.delete("/habitaciones/{hid}")
+def eliminar_habitacion(
+    hid: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_rol(RolEnum.admin)),
+):
+    h = db.query(Habitacion).filter(Habitacion.id == hid).first()
+    if not h:
+        raise HTTPException(status_code=404, detail="No encontrada")
+    h.activa = False
+    db.commit()
+    return {"ok": True}
+
+
+# ── Estadísticas ─────────────────────────────────────────────────
 
 @router.get("/estadisticas")
 def estadisticas(
