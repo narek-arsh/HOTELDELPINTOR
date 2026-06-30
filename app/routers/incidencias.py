@@ -178,7 +178,7 @@ async def cambiar_estado(
 
 
 @router.delete("/{iid}")
-def archivar(
+def eliminar(
     iid: int,
     db: Session = Depends(get_db),
     _=Depends(require_rol(RolEnum.admin)),
@@ -186,6 +186,6 @@ def archivar(
     inc = db.query(Incidencia).filter(Incidencia.id == iid).first()
     if not inc:
         raise HTTPException(status_code=404, detail="No encontrada")
-    inc.estado = EstadoEnum.archivado
+    db.delete(inc)
     db.commit()
     return {"ok": True}
