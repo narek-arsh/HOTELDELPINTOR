@@ -25,6 +25,7 @@ class IncidenciaCreate(BaseModel):
 class CambioEstadoRequest(BaseModel):
     estado: EstadoEnum
     nota: Optional[str] = None
+    prioridad: Optional[PrioridadEnum] = None
 
 
 def inc_dict(inc: Incidencia) -> dict:
@@ -160,6 +161,9 @@ async def cambiar_estado(
 
     if data.nota is not None:
         inc.notas_mantenimiento = data.nota
+
+    if data.prioridad is not None:
+        inc.prioridad = data.prioridad
 
     if data.estado == EstadoEnum.resuelto:
         inc.resuelto_en = datetime.now(timezone.utc)
