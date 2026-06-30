@@ -118,6 +118,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sa
 .chip.sel { background: var(--ink); color: #fff; border-color: var(--ink); }
 .chip:not(.sel) { background: var(--surface); color: var(--slate); }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
@@ -299,7 +301,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sa
 <!-- ══ SHEET PERFIL ════════════════════════════════════════ -->
 <div id="sheet-perfil" class="overlay" onclick="closeOverlayOut(event,'sheet-perfil')">
   <div class="sheet">
-    <div class="sheet-title">Cambiar contraseña<button class="sheet-close" onclick="closeSheet('sheet-perfil')">×</button></div>
+    <div class="sheet-title">Mi perfil<button class="sheet-close" onclick="closeSheet('sheet-perfil')">×</button></div>
+
+    <span class="section-label">Notificaciones</span>
+    <div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">Avisos en el dispositivo</div>
+        <div id="notif-status" style="font-size:11px;color:var(--slate);margin-top:2px">Comprobando...</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="notif-btn" onclick="toggleNotificaciones()">Activar</button>
+    </div>
+
+    <span class="section-label">Cambiar contraseña</span>
     <div class="field"><label class="field-label">Contraseña actual</label><input type="password" id="pw-actual" placeholder="••••••"></div>
     <div class="field"><label class="field-label">Nueva contraseña</label><input type="password" id="pw-nueva" placeholder="Mínimo 6 caracteres"></div>
     <div class="field"><label class="field-label">Confirmar nueva</label><input type="password" id="pw-conf" placeholder="••••••"></div>
@@ -587,6 +600,7 @@ function verDetalleLimpiadora(id) {
   const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const autorLabel = inc.notas_mantenimiento_autor_rol === "admin" ? "Nota de administración" : "Nota de mantenimiento";
+  const comentarios = inc.comentarios_internos || [];
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
@@ -595,6 +609,7 @@ function verDetalleLimpiadora(id) {
     <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
     ${inc.notas ? `<span class="section-label">Tu nota</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : ""}
     ${inc.notas_mantenimiento ? `<span class="section-label">${autorLabel}</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas_mantenimiento}</p>` : ""}
+    ${comentarios.length ? `<span class="section-label">Conversación sobre tu aviso</span><div style="margin-bottom:16px">${comentariosInternosHtml(comentarios)}</div>` : ""}
     ${fotos ? `<span class="section-label">Fotos</span><div class="foto-grid">${fotos}</div>` : ""}
   `;
   openSheet("sheet-detalle");
@@ -996,13 +1011,119 @@ async function crearHabitaciones() {
 }
 
 // ── Sheets / Overlays ─────────────────────────────────────────
-function openSheet(id) { document.getElementById(id).classList.add("open"); }
+function openSheet(id) {
+  document.getElementById(id).classList.add("open");
+  if (id === "sheet-perfil") actualizarEstadoNotif();
+}
 function closeSheet(id) { document.getElementById(id).classList.remove("open"); }
 function closeOverlayOut(e, id) { if (e.target.id === id) closeSheet(id); }
 
 // ── Foto viewer ───────────────────────────────────────────────
 function openFotoViewer(url) { document.getElementById("foto-viewer-img").src = url; document.getElementById("foto-viewer").classList.add("open"); }
 function closeFotoViewer() { document.getElementById("foto-viewer").classList.remove("open"); }
+
+// ── Notificaciones push (Firebase Cloud Messaging) ──────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC8RXNwBkGK4BaJVRCDa8ezQLn00E1JUzU",
+  authDomain: "hoteldelpintor.firebaseapp.com",
+  projectId: "hoteldelpintor",
+  storageBucket: "hoteldelpintor.firebasestorage.app",
+  messagingSenderId: "587720154488",
+  appId: "1:587720154488:web:f5f3a45eeffd41cab6fc8d"
+};
+const VAPID_KEY = "BI6VDuEH4rWXOHFSdGIfAAtJSBgyAUOs8nhL4sejb4h_khCdCrvSeNiY9hW5FcznQNJKztxB0ldcbJ9Gug76shY";
+
+let fcmApp = null, fcmMessaging = null;
+let notifToken = localStorage.getItem("hp_fcm_token") || null;
+
+function initFirebaseMessaging() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+  try {
+    if (!fcmApp) {
+      fcmApp = firebase.initializeApp(FIREBASE_CONFIG);
+      fcmMessaging = firebase.messaging();
+    }
+    // Mensajes en primer plano (app abierta)
+    fcmMessaging.onMessage((payload) => {
+      const title = payload.notification?.title || "Hotel del Pintor";
+      const body = payload.notification?.body || "";
+      if (Notification.permission === "granted") {
+        new Notification(title, { body, icon: "/icon-192.png" });
+      }
+    });
+  } catch (e) { console.warn("Firebase messaging no disponible:", e); }
+}
+
+async function actualizarEstadoNotif() {
+  const statusEl = document.getElementById("notif-status");
+  const btnEl = document.getElementById("notif-btn");
+  if (!("Notification" in window)) {
+    statusEl.textContent = "No soportado en este navegador";
+    btnEl.style.display = "none";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    statusEl.textContent = "Bloqueadas — actívalas en ajustes del navegador";
+    btnEl.style.display = "none";
+  } else if (Notification.permission === "granted" && notifToken) {
+    statusEl.textContent = "Activadas en este dispositivo";
+    btnEl.textContent = "Desactivar";
+  } else {
+    statusEl.textContent = "Desactivadas";
+    btnEl.textContent = "Activar";
+    btnEl.style.display = "inline-block";
+  }
+}
+
+async function toggleNotificaciones() {
+  const btnEl = document.getElementById("notif-btn");
+  const statusEl = document.getElementById("notif-status");
+
+  if (Notification.permission === "granted" && notifToken) {
+    // Desactivar: borrar token del backend y local
+    try {
+      await fetch(`${API}/api/notificaciones/registrar-token`, {
+        method: "DELETE",
+        headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+        body: JSON.stringify({token: notifToken})
+      });
+    } catch {}
+    localStorage.removeItem("hp_fcm_token");
+    notifToken = null;
+    actualizarEstadoNotif();
+    return;
+  }
+
+  btnEl.disabled = true; btnEl.textContent = "Activando...";
+  try {
+    initFirebaseMessaging();
+    const permiso = await Notification.requestPermission();
+    if (permiso !== "granted") {
+      statusEl.textContent = "Permiso denegado";
+      btnEl.disabled = false; btnEl.textContent = "Activar";
+      return;
+    }
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const fcmToken = await fcmMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    if (!fcmToken) throw new Error("No se obtuvo token");
+
+    await fetch(`${API}/api/notificaciones/registrar-token`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body: JSON.stringify({token: fcmToken})
+    });
+
+    localStorage.setItem("hp_fcm_token", fcmToken);
+    notifToken = fcmToken;
+    statusEl.textContent = "Activadas en este dispositivo";
+    btnEl.textContent = "Desactivar";
+  } catch (e) {
+    statusEl.textContent = "Error al activar. Inténtalo de nuevo.";
+    console.error(e);
+  } finally {
+    btnEl.disabled = false;
+  }
+}
 </script>
 </body>
 </html>
