@@ -4,8 +4,8 @@
   "description": "Sistema de incidencias Hotel del Pintor",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1B2A4A",
-  "theme_color": "#1B2A4A",
+  "background_color": "#9E312C",
+  "theme_color": "#9E312C",
   "orientation": "portrait",
   "icons": [
     {
