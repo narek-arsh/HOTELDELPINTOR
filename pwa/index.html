@@ -599,7 +599,6 @@ function verDetalleLimpiadora(id) {
   if (!inc) return;
   const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
-  const autorLabel = inc.notas_mantenimiento_autor_rol === "admin" ? "Nota de administración" : "Nota de mantenimiento";
   const comentarios = inc.comentarios_internos || [];
 
   document.getElementById("sheet-detalle-body").innerHTML = `
@@ -607,9 +606,8 @@ function verDetalleLimpiadora(id) {
     <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""}</p>
     <span class="section-label">Estado</span>
     <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
-    ${inc.notas ? `<span class="section-label">Tu nota</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : ""}
-    ${inc.notas_mantenimiento ? `<span class="section-label">${autorLabel}</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas_mantenimiento}</p>` : ""}
-    ${comentarios.length ? `<span class="section-label">Conversación sobre tu aviso</span><div style="margin-bottom:16px">${comentariosInternosHtml(comentarios)}</div>` : ""}
+    <span class="section-label">Conversación</span>
+    <div style="margin-bottom:16px">${comentariosInternosHtml(comentarios, inc.notas, "Tu aviso inicial")}</div>
     ${fotos ? `<span class="section-label">Fotos</span><div class="foto-grid">${fotos}</div>` : ""}
   `;
   openSheet("sheet-detalle");
@@ -714,12 +712,10 @@ async function abrirDetalle(id) {
   const estados = ["recibido","en_curso","esperando_material","resuelto"];
   const prios = ["urgente","normal","baja"];
   const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
-  const notaLimpiadoraHtml = inc.notas ? `<span class="section-label">Nota de ${inc.reporter?.nombre || 'quien reporta'}</span><p style="font-size:13px;color:var(--text);margin-bottom:16px;line-height:1.5">${inc.notas}</p>` : "";
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
     <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""} · ${inc.reporter?.nombre||""} · ${ROL_LABELS[inc.reporter?.rol]||""}</p>
-    ${notaLimpiadoraHtml}
     <span class="section-label">Prioridad</span>
     <div class="prio-row" id="prio-grid-detalle" style="margin-bottom:14px">
       ${prios.map(p=>`<button class="prio-btn prio-${p} ${inc.prioridad===p?'sel-'+p:''}" data-prio="${p}" onclick="selPrioDetalle(this)">${prioLabels[p]}</button>`).join("")}
@@ -729,8 +725,8 @@ async function abrirDetalle(id) {
       ${estados.map(e=>`<button class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
     </div>
     <span class="section-label">Conversación</span>
-    <div id="comentarios-lista" style="margin-bottom:10px;max-height:220px;overflow-y:auto">
-      ${comentariosInternosHtml(inc.comentarios_internos || [])}
+    <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre)}
     </div>
     <div class="field" style="margin-bottom:14px">
       <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
@@ -743,9 +739,20 @@ async function abrirDetalle(id) {
   openSheet("sheet-detalle");
 }
 
-function comentariosInternosHtml(comentarios) {
-  if (!comentarios.length) return '<p style="font-size:12px;color:var(--slate)">Sin mensajes todavía.</p>';
-  return comentarios.map(c => {
+function comentariosInternosHtml(comentarios, notaApertura, autorApertura) {
+  let html = "";
+  if (notaApertura) {
+    html += `
+      <div style="background:var(--emer-bg);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--emerald)">
+        <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:3px">${autorApertura||'Reportante'} · Aviso inicial</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.4">${notaApertura}</div>
+      </div>
+    `;
+  }
+  if (!comentarios.length && !notaApertura) {
+    return '<p style="font-size:12px;color:var(--slate)">Sin mensajes todavía.</p>';
+  }
+  html += comentarios.map(c => {
     const esAdmin = c.autor_rol === "admin";
     const fecha = new Date(c.fecha);
     const horaStr = fecha.toLocaleDateString("es-ES", {day:"2-digit",month:"2-digit"}) + " " + fecha.toLocaleTimeString("es-ES", {hour:"2-digit",minute:"2-digit"});
@@ -759,6 +766,7 @@ function comentariosInternosHtml(comentarios) {
       </div>
     `;
   }).join("");
+  return html;
 }
 
 async function enviarComentario(id, texto) {
