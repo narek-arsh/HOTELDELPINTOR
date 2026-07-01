@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.database import engine
 from app.models.models import Base
-from app.routers import auth, incidencias, admin, websocket, fotos, perfil, notificaciones
+from app.routers import auth, incidencias, admin, websocket, fotos, perfil, notificaciones, huesped
 from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.models import Usuario, RolEnum
@@ -33,6 +33,7 @@ app.include_router(websocket.router)
 app.include_router(fotos.router)
 app.include_router(perfil.router)
 app.include_router(notificaciones.router)
+app.include_router(huesped.router)
 
 PWA_DIR = os.path.join(os.path.dirname(__file__), "pwa")
 if os.path.exists(PWA_DIR):
@@ -55,6 +56,9 @@ if os.path.exists(PWA_DIR):
 
     @app.get("/logo-login.png")
     def logo_login(): return FileResponse(os.path.join(PWA_DIR, "logo-login.png"))
+
+    @app.get("/h/{token}", response_class=FileResponse)
+    def huesped_page(token: str): return FileResponse(os.path.join(PWA_DIR, "huesped.html"))
 
     @app.get("/")
     def pwa(): return FileResponse(os.path.join(PWA_DIR, "index.html"))
