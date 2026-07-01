@@ -93,6 +93,7 @@ async def crear_incidencia_huesped(
         origen=OrigenEnum.huesped,
         tipo_solicitud=data.tipo_solicitud,
         nombre_huesped=data.nombre_huesped or None,
+        idioma=data.idioma or "es",
         reporter_id=None,  # sin usuario registrado
     )
     db.add(inc)
