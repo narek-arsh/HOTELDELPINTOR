@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models.models import (
     Incidencia, CambioEstado, Usuario, ComentarioInterno, DeviceToken,
-    EstadoEnum, TipoEnum, PrioridadEnum, RolEnum, TipoSolicitudEnum
+    EstadoEnum, TipoEnum, PrioridadEnum, RolEnum, TipoSolicitudEnum, TipoLimpiezaEnum
 )
 from app.auth import get_current_user, require_rol
 from app.websocket_manager import manager
@@ -63,6 +63,7 @@ def inc_dict(inc: Incidencia, current_user: Optional[Usuario] = None) -> dict:
         "notas_mantenimiento_autor_rol": inc.notas_mantenimiento_autor_rol,
         "origen": inc.origen,
         "tipo_solicitud": inc.tipo_solicitud,
+        "tipo_limpieza": inc.tipo_limpieza,
         "nombre_huesped": inc.nombre_huesped,
         "reporter": {
             "id": inc.reporter.id,
@@ -315,6 +316,10 @@ async def cambiar_estado(
         raise HTTPException(status_code=404, detail="No encontrada")
     if not puede_gestionar(current_user, inc):
         raise HTTPException(status_code=403, detail="Sin permisos sobre esta petición")
+    if data.estado == EstadoEnum.asignado:
+        raise HTTPException(status_code=400, detail="'Asignado' se pone solo automáticamente, no se puede seleccionar")
+    if inc.tipo_solicitud == TipoSolicitudEnum.limpieza and data.estado == EstadoEnum.esperando_material:
+        raise HTTPException(status_code=400, detail="'Esperando material' no aplica a peticiones de limpieza")
 
     anterior = inc.estado
     inc.estado = data.estado
@@ -387,7 +392,7 @@ async def asignar_incidencia(
     anterior = inc.estado
     inc.asignado_id = limpiadora.id
     if inc.estado == EstadoEnum.recibido:
-        inc.estado = EstadoEnum.en_curso
+        inc.estado = EstadoEnum.asignado
     inc.actualizado_en = datetime.now(timezone.utc)
 
     comentario = ComentarioInterno(
