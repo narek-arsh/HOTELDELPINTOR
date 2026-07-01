@@ -26,20 +26,22 @@ def get_db():
 def sync_missing_columns():
     """
     create_all() solo crea tablas nuevas: nunca añade columnas a tablas que
-    ya existen en la base real. Si el modelo gana una columna nueva (como
-    pasó con Habitacion.token, o con Incidencia.origen/tipo_solicitud/
-    nombre_huesped al añadir el flujo de huéspedes) y la tabla ya existía
-    en Postgres, cualquier INSERT que use esa columna falla con
-    'column ... does not exist'.
+    ya existen en la base real, ni corrige restricciones antiguas. Esto causa
+    dos problemas típicos cuando el modelo evoluciona:
 
-    Este parche revisa, en cada arranque, si faltan columnas del modelo en
-    la tabla real y las añade con ALTER TABLE. Para columnas de tipo Enum
-    (como origen/tipo_solicitud), Postgres exige que el TYPE exista antes
-    de poder usarlo en una columna, así que se crea primero con
-    CREATE TYPE si no existe.
+    1. Columna nueva que no existe en la tabla real (ej. Habitacion.token,
+       Incidencia.tipo_solicitud) -> 'column ... does not exist'.
+    2. Columna que ya existía como NOT NULL desde el principio, pero el
+       modelo ahora la marca como opcional (ej. Incidencia.tipo, que ahora
+       puede ser null para peticiones de limpieza) -> 'null value ... violates
+       not-null constraint'.
 
-    No borra ni modifica filas existentes. Es un parche mínimo mientras
-    no se use Alembic.
+    Este parche corrige ambos casos en cada arranque. Para columnas Enum
+    nuevas, Postgres exige que el TYPE exista antes de poder usarlo, así que
+    se crea primero con CREATE TYPE si no existe.
+
+    No borra ni modifica datos existentes. Es un parche mínimo mientras no
+    se use Alembic.
     """
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
@@ -48,9 +50,22 @@ def sync_missing_columns():
         for table in Base.metadata.sorted_tables:
             if table.name not in existing_tables:
                 continue  # tabla nueva -> create_all() ya la crea completa
-            existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+            existing_cols_info = {c["name"]: c for c in inspector.get_columns(table.name)}
             for col in table.columns:
-                if col.name in existing_cols:
+                if col.name in existing_cols_info:
+                    # La columna ya existe: si el modelo la marca como opcional
+                    # pero la tabla real la exige NOT NULL (constraint antigua
+                    # de cuando se creó la tabla), lo corregimos para que
+                    # coincida con el modelo.
+                    info = existing_cols_info[col.name]
+                    if col.nullable and not info["nullable"]:
+                        try:
+                            conn.execute(text(
+                                f'ALTER TABLE "{table.name}" ALTER COLUMN "{col.name}" DROP NOT NULL'
+                            ))
+                            print(f"[sync_missing_columns] Quitado NOT NULL de {table.name}.{col.name}")
+                        except Exception as e:
+                            print(f"[sync_missing_columns] No se pudo quitar NOT NULL de {table.name}.{col.name}: {e}")
                     continue
 
                 # Si la columna es un Enum de Postgres, el TYPE debe existir
