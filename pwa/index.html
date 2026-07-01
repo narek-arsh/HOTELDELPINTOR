@@ -666,7 +666,7 @@ function verDetalleLimpiadora(id) {
       </div>
     ` : ""}
     <span class="section-label">Conversación</span>
-    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.notas, autorApertura, inc.id)}</div>
+    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.origen === "huesped" ? inc.descripcion : inc.notas, autorApertura, inc.id)}</div>
     ${puedeComentar ? `
       <div class="field" style="margin-bottom:14px">
         <textarea id="nuevo-comentario-gob" rows="2" placeholder="Escribe un mensaje..."></textarea>
@@ -890,7 +890,7 @@ async function abrirDetalle(id) {
     </div>
     <span class="section-label">Conversación</span>
     <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
-      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id)}
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.origen === "huesped" ? inc.descripcion : inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id)}
     </div>
     <div class="field" style="margin-bottom:14px">
       <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
