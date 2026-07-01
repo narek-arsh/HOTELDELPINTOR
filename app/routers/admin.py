@@ -130,8 +130,18 @@ class HabitacionesBulkCreate(BaseModel):
     numeros: List[str]
 
 
+import secrets
+
 def habitacion_dict(h: Habitacion) -> dict:
-    return {"id": h.id, "numero": h.numero, "activa": h.activa}
+    return {"id": h.id, "numero": h.numero, "activa": h.activa, "token": h.token}
+
+
+def _gen_token(db) -> str:
+    """Genera un token único de 10 caracteres alfanuméricos."""
+    while True:
+        tok = secrets.token_urlsafe(7)[:10]
+        if not db.query(Habitacion).filter(Habitacion.token == tok).first():
+            return tok
 
 
 @router.get("/habitaciones")
@@ -156,11 +166,13 @@ def crear_habitacion(
     if existente:
         if not existente.activa:
             existente.activa = True
+            if not existente.token:
+                existente.token = _gen_token(db)
             db.commit()
             return habitacion_dict(existente)
         raise HTTPException(status_code=400, detail="Esa habitación ya existe")
     max_orden = db.query(Habitacion).count()
-    h = Habitacion(numero=numero, orden=max_orden)
+    h = Habitacion(numero=numero, orden=max_orden, token=_gen_token(db))
     db.add(h)
     db.commit()
     db.refresh(h)
@@ -183,9 +195,11 @@ def crear_habitaciones_bulk(
         if existente:
             if not existente.activa:
                 existente.activa = True
+                if not existente.token:
+                    existente.token = _gen_token(db)
                 creadas.append(numero)
             continue
-        h = Habitacion(numero=numero, orden=max_orden)
+        h = Habitacion(numero=numero, orden=max_orden, token=_gen_token(db))
         db.add(h)
         max_orden += 1
         creadas.append(numero)
