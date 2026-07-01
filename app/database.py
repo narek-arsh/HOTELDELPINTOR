@@ -78,3 +78,47 @@ def sync_missing_columns():
                         ))
                     except Exception as e:
                         print(f"[sync_missing_columns] No se pudo indexar {table.name}.{col.name}: {e}")
+
+
+def sync_missing_enum_values():
+    """
+    Cuando un Enum de Python (p.ej. EstadoEnum) gana un valor nuevo (como
+    'asignado'), el TYPE que ya existe en Postgres no lo tiene automáticamente
+    — ni create_all() ni sync_missing_columns() tocan los valores de un enum
+    ya creado. Hay que añadirlo explícitamente con ALTER TYPE ... ADD VALUE.
+
+    Esto tiene que ejecutarse fuera de una transacción normal (Postgres no
+    permite ALTER TYPE ADD VALUE dentro de la misma transacción en la que
+    luego se usa), así que se usa una conexión en autocommit.
+    """
+    vistos = set()
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        for table in Base.metadata.sorted_tables:
+            for col in table.columns:
+                if not isinstance(col.type, SAEnumType) or not getattr(col.type, "enum_class", None):
+                    continue
+                type_name = col.type.name
+                if not type_name or type_name in vistos:
+                    continue
+                vistos.add(type_name)
+                try:
+                    filas = conn.execute(text(
+                        "SELECT enumlabel FROM pg_enum WHERE enumtypid = "
+                        "(SELECT oid FROM pg_type WHERE typname = :t)"
+                    ), {"t": type_name}).fetchall()
+                    existentes = {f[0] for f in filas}
+                except Exception as e:
+                    print(f"[sync_missing_enum_values] No se pudo leer el tipo {type_name}: {e}")
+                    continue
+                if not existentes:
+                    continue  # el tipo aún no existe -> ya lo crea create_all()/sync_missing_columns()
+                for miembro in col.type.enum_class:
+                    valor = miembro.value
+                    if valor in existentes:
+                        continue
+                    try:
+                        conn.execute(text(f"ALTER TYPE \"{type_name}\" ADD VALUE IF NOT EXISTS '{valor}'"))
+                        print(f"[sync_missing_enum_values] Añadido valor '{valor}' a {type_name}")
+                        existentes.add(valor)
+                    except Exception as e:
+                        print(f"[sync_missing_enum_values] No se pudo añadir '{valor}' a {type_name}: {e}")
