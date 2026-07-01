@@ -14,6 +14,7 @@ class RolEnum(str, enum.Enum):
 
 class EstadoEnum(str, enum.Enum):
     recibido = "recibido"
+    asignado = "asignado"
     en_curso = "en_curso"
     esperando_material = "esperando_material"
     resuelto = "resuelto"
@@ -60,6 +61,14 @@ class TipoSolicitudEnum(str, enum.Enum):
     limpieza = "limpieza"
 
 
+class TipoLimpiezaEnum(str, enum.Enum):
+    toallas = "toallas"
+    sabanas = "sabanas"
+    amenities = "amenities"
+    limpieza_general = "limpieza_general"
+    otro = "otro"
+
+
 class Habitacion(Base):
     __tablename__ = "habitaciones"
 
@@ -84,6 +93,7 @@ class Incidencia(Base):
 
     origen = Column(SAEnum(OrigenEnum), default=OrigenEnum.staff)
     tipo_solicitud = Column(SAEnum(TipoSolicitudEnum), nullable=True)  # solo huéspedes
+    tipo_limpieza = Column(SAEnum(TipoLimpiezaEnum), nullable=True)    # solo si tipo_solicitud == limpieza
     nombre_huesped = Column(String(100), nullable=True)
 
     notas = Column(Text, nullable=True)
