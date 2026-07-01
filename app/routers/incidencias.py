@@ -52,6 +52,9 @@ def inc_dict(inc: Incidencia, current_user: Optional[Usuario] = None) -> dict:
         "notas": inc.notas,
         "notas_mantenimiento": inc.notas_mantenimiento,
         "notas_mantenimiento_autor_rol": inc.notas_mantenimiento_autor_rol,
+        "origen": inc.origen,
+        "tipo_solicitud": inc.tipo_solicitud,
+        "nombre_huesped": inc.nombre_huesped,
         "reporter": {
             "id": inc.reporter.id,
             "nombre": inc.reporter.nombre,
