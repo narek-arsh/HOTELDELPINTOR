@@ -683,7 +683,7 @@ function verDetalleLimpiadora(id) {
       </div>
     ` : ""}
     <span class="section-label">Conversación</span>
-    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.origen === "huesped" ? inc.descripcion : inc.notas, autorApertura, inc.id)}</div>
+    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.origen === "huesped" ? inc.descripcion : inc.notas, autorApertura, inc.id, inc.idioma)}</div>
     ${puedeComentar ? `
       <div class="field" style="margin-bottom:14px">
         <textarea id="nuevo-comentario-gob" rows="2" placeholder="Escribe un mensaje..."></textarea>
@@ -907,7 +907,7 @@ async function abrirDetalle(id) {
     </div>
     <span class="section-label">Conversación</span>
     <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
-      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.origen === "huesped" ? inc.descripcion : inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id)}
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.origen === "huesped" ? inc.descripcion : inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id, inc.idioma)}
     </div>
     <div class="field" style="margin-bottom:14px">
       <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
@@ -921,15 +921,16 @@ async function abrirDetalle(id) {
   if (puedeAsignar) cargarLimpiadorasEnSelect(id, inc.asignado?.id);
 }
 
-function comentariosInternosHtml(comentarios, notaApertura, autorApertura, incId) {
+function comentariosInternosHtml(comentarios, notaApertura, autorApertura, incId, idiomaOrigen) {
   let html = "";
   if (notaApertura) {
     const translateId = `transl-${incId || 'nota'}`;
+    const origen = idiomaOrigen || "en";
     html += `
       <div style="background:var(--emer-bg);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--emerald)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-size:11px;font-weight:700;color:var(--emerald)">${autorApertura||'Reportante'} · Aviso inicial</span>
-          <button onclick="traducirTexto('${notaApertura.replace(/'/g,"\\'").replace(/\n/g,' ')}','${translateId}')" style="background:none;border:1px solid var(--emerald);border-radius:2px;color:var(--emerald);font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer">Traducir</button>
+          <button onclick="traducirTexto('${notaApertura.replace(/'/g,"\\'").replace(/\n/g,' ')}','${translateId}','${origen}')" style="background:none;border:1px solid var(--emerald);border-radius:2px;color:var(--emerald);font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer">Traducir</button>
         </div>
         <div style="font-size:13px;color:var(--text);line-height:1.4">${notaApertura}</div>
         <div id="${translateId}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--emerald)33;font-size:12px;color:var(--emerald);font-style:italic"></div>
@@ -1244,13 +1245,14 @@ async function crearHabitaciones() {
 }
 
 // ── Traducción con MyMemory (gratuito, sin API key) ───────────
-async function traducirTexto(texto, elementId) {
+async function traducirTexto(texto, elementId, idiomaOrigen) {
   const el = document.getElementById(elementId);
   if (!el) return;
   el.style.display = "block";
   el.textContent = "Traduciendo...";
   try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=auto|es`;
+    const origen = idiomaOrigen || "en";
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=${origen}|es`;
     const r = await fetch(url);
     const d = await r.json();
     const traduccion = d.responseData?.translatedText;
