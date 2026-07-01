@@ -136,8 +136,16 @@ body { font-family: 'Manrope', -apple-system, sans-serif; background: var(--bg);
   <!-- STEP 2b: Detalles limpieza -->
   <div id="step2-limp" class="step">
     <span class="section-label" id="lbl-que-necesitas">¿Qué necesitas exactamente?</span>
-    <div class="field">
-      <textarea id="f-desc-limp" rows="4" placeholder=""></textarea>
+    <div class="type-grid" id="tipo-grid-limp"></div>
+    <div id="otro-box-limp" style="display:none;margin-top:10px">
+      <div class="field">
+        <label class="field-label" id="lbl-desc-obligatoria-limp">Descripción *</label>
+        <textarea id="f-desc-limp" rows="3" placeholder=""></textarea>
+      </div>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label class="field-label" id="lbl-notas-limp">Notas adicionales</label>
+      <textarea id="f-notas-limp" rows="2" placeholder=""></textarea>
     </div>
     <div class="field">
       <label class="field-label" id="lbl-nombre-limp">Tu nombre <span class="opt-label">(opcional)</span></label>
@@ -176,6 +184,7 @@ const token = location.pathname.split('/h/')[1]?.split('/')[0];
 let habitacion = null;
 let tipoSolSel = null;
 let tipoMantSel = null;
+let tipoLimpSel = null;
 let lang = 'es';
 let fotosMant = [];
 let fotosLimp = [];
@@ -203,6 +212,7 @@ const T = {
     tu_codigo: "Tu código de referencia",
     nueva: "Nueva solicitud",
     err_tipo: "Por favor selecciona el tipo de avería.",
+    err_tipo_limp: "Por favor selecciona qué necesitas.",
     err_desc: "Por favor describe el problema.",
     err_conexion: "Error de conexión. Inténtalo de nuevo.",
     que_necesitas: "¿Qué necesitas exactamente?",
@@ -214,6 +224,13 @@ const T = {
       calefaccion: "❄️ Clima / Calefacción",
       mueble: "🪑 Mobiliario",
       otro: "❓ Otro",
+    },
+    tipos_limp: {
+      toallas: "🧺 Toallas",
+      sabanas: "🛏️ Cambio de ropa de cama",
+      amenities: "🧴 Amenities",
+      limpieza_general: "🧹 Limpieza general",
+      otro: "❓ Otra necesidad",
     }
   },
   en: {
@@ -238,6 +255,7 @@ const T = {
     tu_codigo: "Your reference code",
     nueva: "New request",
     err_tipo: "Please select the type of issue.",
+    err_tipo_limp: "Please select what you need.",
     err_desc: "Please describe the problem.",
     err_conexion: "Connection error. Please try again.",
     que_necesitas: "What exactly do you need?",
@@ -249,6 +267,13 @@ const T = {
       calefaccion: "❄️ A/C / Heating",
       mueble: "🪑 Furniture",
       otro: "❓ Other",
+    },
+    tipos_limp: {
+      toallas: "🧺 Towels",
+      sabanas: "🛏️ Bed linen change",
+      amenities: "🧴 Amenities",
+      limpieza_general: "🧹 General cleaning",
+      otro: "❓ Other need",
     }
   }
 };
@@ -314,7 +339,6 @@ function applyTranslations() {
   document.getElementById('btn-send-mant').textContent = t('enviar');
   document.getElementById('btn-send-limp').textContent = t('enviar');
   document.getElementById('lbl-que-necesitas').textContent = t('que_necesitas');
-  document.getElementById('f-desc-limp').placeholder = t('limp_placeholder');
   document.getElementById('lbl-nombre-limp').childNodes[0].textContent = t('nombre') + ' ';
   document.getElementById('f-nombre-limp').placeholder = t('nombre_placeholder');
   document.getElementById('lbl-enviado').textContent = t('enviado');
@@ -324,6 +348,11 @@ function applyTranslations() {
 
   // Rebuild tipo grid with new language
   if (tipoSolSel === 'mantenimiento') buildTipoGrid();
+  if (tipoSolSel === 'limpieza') buildTipoGridLimp();
+  document.getElementById('lbl-desc-obligatoria-limp').textContent = t('desc_obligatoria');
+  document.getElementById('f-desc-limp').placeholder = t('desc_placeholder');
+  document.getElementById('lbl-notas-limp').childNodes[0].textContent = t('notas_mant') + ' ';
+  document.getElementById('f-notas-limp').placeholder = t('notas_placeholder');
   // Back buttons
   document.querySelectorAll('.btn-secondary[onclick="goBack()"]').forEach(b => b.textContent = t('volver'));
 }
@@ -332,6 +361,13 @@ function buildTipoGrid() {
   const tipos = ['bombilla','puerta','fontaneria','calefaccion','mueble','otro'];
   document.getElementById('tipo-grid').innerHTML = tipos.map(tp =>
     `<button type="button" class="type-btn ${tipoMantSel===tp?'sel':''}" onclick="selTipoMant('${tp}')">${t('tipos')[tp]}</button>`
+  ).join('');
+}
+
+function buildTipoGridLimp() {
+  const tipos = ['toallas','sabanas','amenities','limpieza_general','otro'];
+  document.getElementById('tipo-grid-limp').innerHTML = tipos.map(tp =>
+    `<button type="button" class="type-btn ${tipoLimpSel===tp?'sel':''}" onclick="selTipoLimp('${tp}')">${t('tipos_limp')[tp]}</button>`
   ).join('');
 }
 
@@ -348,6 +384,7 @@ function selSolicitud(tipo) {
     buildTipoGrid();
     showStep('step2-mant');
   } else {
+    buildTipoGridLimp();
     showStep('step2-limp');
   }
 }
@@ -358,8 +395,15 @@ function selTipoMant(tp) {
   buildTipoGrid();
 }
 
+function selTipoLimp(tp) {
+  tipoLimpSel = tp;
+  document.getElementById('otro-box-limp').style.display = tp === 'otro' ? 'block' : 'none';
+  buildTipoGridLimp();
+}
+
 function goBack() {
   tipoMantSel = null;
+  tipoLimpSel = null;
   document.getElementById('card-mant').classList.remove('sel');
   document.getElementById('card-limp').classList.remove('sel');
   showStep('step1');
@@ -398,7 +442,10 @@ async function enviarMant() {
 async function enviarLimp() {
   const err = document.getElementById('err-limp');
   err.style.display = 'none';
+  if (!tipoLimpSel) { err.textContent = t('err_tipo_limp'); err.style.display = 'block'; return; }
   const desc = document.getElementById('f-desc-limp').value.trim();
+  if (tipoLimpSel === 'otro' && !desc) { err.textContent = t('err_desc'); err.style.display = 'block'; return; }
+  const notas = document.getElementById('f-notas-limp').value.trim();
   const nombre = document.getElementById('f-nombre-limp').value.trim();
   const btn = document.getElementById('btn-send-limp');
   btn.disabled = true;
@@ -408,7 +455,8 @@ async function enviarLimp() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         tipo_solicitud: 'limpieza',
-        descripcion: desc || null,
+        tipo_limpieza: tipoLimpSel,
+        descripcion: tipoLimpSel === 'otro' ? desc : (notas || null),
         nombre_huesped: nombre || null,
         idioma: lang,
       })
@@ -428,13 +476,14 @@ function mostrarExito(codigo) {
 }
 
 function resetForm() {
-  tipoSolSel = null; tipoMantSel = null;
-  ['f-desc-mant','f-notas-mant','f-nombre-mant','f-desc-limp','f-nombre-limp'].forEach(id => {
+  tipoSolSel = null; tipoMantSel = null; tipoLimpSel = null;
+  ['f-desc-mant','f-notas-mant','f-nombre-mant','f-desc-limp','f-notas-limp','f-nombre-limp'].forEach(id => {
     document.getElementById(id).value = '';
   });
   fotosMant = []; fotosLimp = [];
   renderFotosGridHuesped('mant'); renderFotosGridHuesped('limp');
   document.getElementById('otro-box').style.display = 'none';
+  document.getElementById('otro-box-limp').style.display = 'none';
   showStep('step1');
 }
 
