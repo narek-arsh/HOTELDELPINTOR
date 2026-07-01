@@ -50,11 +50,22 @@ class Usuario(Base):
     cambios_estado = relationship("CambioEstado", back_populates="usuario")
 
 
+class OrigenEnum(str, enum.Enum):
+    staff = "staff"
+    huesped = "huesped"
+
+
+class TipoSolicitudEnum(str, enum.Enum):
+    mantenimiento = "mantenimiento"
+    limpieza = "limpieza"
+
+
 class Habitacion(Base):
     __tablename__ = "habitaciones"
 
     id = Column(Integer, primary_key=True, index=True)
     numero = Column(String(20), unique=True, index=True, nullable=False)
+    token = Column(String(16), unique=True, index=True, nullable=True)  # token para QR del huésped
     activa = Column(Boolean, default=True)
     orden = Column(Integer, default=0)
     creado_en = Column(DateTime, default=datetime.utcnow)
@@ -66,14 +77,18 @@ class Incidencia(Base):
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(20), unique=True, index=True)  # INC-2026-001
     habitacion = Column(String(20), nullable=False)
-    tipo = Column(SAEnum(TipoEnum), nullable=False)
-    descripcion = Column(Text, nullable=True)       # obligatorio si tipo=otro
+    tipo = Column(SAEnum(TipoEnum), nullable=True)        # nullable para solicitudes de limpieza
+    descripcion = Column(Text, nullable=True)
     prioridad = Column(SAEnum(PrioridadEnum), default=PrioridadEnum.normal)
     estado = Column(SAEnum(EstadoEnum), default=EstadoEnum.recibido)
 
-    notas = Column(Text, nullable=True)                  # nota original de quien reporta, fija
-    notas_mantenimiento = Column(Text, nullable=True)     # nota de mantenimiento, editable
-    notas_mantenimiento_autor_rol = Column(String(20), nullable=True)  # 'mantenimiento' o 'admin'
+    origen = Column(SAEnum(OrigenEnum), default=OrigenEnum.staff)
+    tipo_solicitud = Column(SAEnum(TipoSolicitudEnum), nullable=True)  # solo huéspedes
+    nombre_huesped = Column(String(100), nullable=True)
+
+    notas = Column(Text, nullable=True)
+    notas_mantenimiento = Column(Text, nullable=True)
+    notas_mantenimiento_autor_rol = Column(String(20), nullable=True)
 
     reporter_id = Column(Integer, ForeignKey("usuarios.id"))
     asignado_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
