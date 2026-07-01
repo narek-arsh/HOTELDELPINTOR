@@ -95,6 +95,7 @@ class Incidencia(Base):
     tipo_solicitud = Column(SAEnum(TipoSolicitudEnum), nullable=True)  # solo huéspedes
     tipo_limpieza = Column(SAEnum(TipoLimpiezaEnum), nullable=True)    # solo si tipo_solicitud == limpieza
     nombre_huesped = Column(String(100), nullable=True)
+    idioma = Column(String(5), nullable=True)  # idioma en el que escribió el huésped (es/en)
 
     notas = Column(Text, nullable=True)
     notas_mantenimiento = Column(Text, nullable=True)
