@@ -66,6 +66,7 @@ body { font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 .card-meta { font-size: 11px; color: var(--slate); margin-top: 8px; }
 .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
 .badge-recibido { background: var(--slate-bg); color: var(--slate); }
+.badge-asignado { background: #E4ECFA; color: #3D5A99; }
 .badge-en_curso { background: var(--gold-bg); color: var(--gold); }
 .badge-esperando_material { background: #EDF0F5; color: #4A5A72; }
 .badge-resuelto { background: var(--emer-bg); color: var(--emerald); }
@@ -412,8 +413,9 @@ let filtroSel = "todos";
 let cache = [];
 let habitacionesCache = [];
 
-const ESTADOS = { recibido: "Recibido", en_curso: "En curso", esperando_material: "Esperando material", resuelto: "Resuelto" };
+const ESTADOS = { recibido: "Recibido", asignado: "Asignado", en_curso: "En curso", esperando_material: "Esperando material", resuelto: "Resuelto" };
 const TIPOS = { bombilla:"Cambio de bombilla", puerta:"Puerta / cerradura", fontaneria:"Fontanería", calefaccion:"Calefacción / Aire", mueble:"Mobiliario", otro:"Otro" };
+const TIPOS_LIMPIEZA = { toallas:"🧺 Toallas", sabanas:"🛏️ Cambio de ropa de cama", amenities:"🧴 Amenities", limpieza_general:"🧹 Limpieza general", otro:"❓ Otra necesidad" };
 const ROL_LABELS = { admin: "Administrador", limpiadora: "Limpiadora", mantenimiento: "Mantenimiento", gobernanta: "Gobernanta" };
 
 // ── Init ──────────────────────────────────────────────────────
@@ -452,8 +454,10 @@ function showApp() {
 
   if (rol === "limpiadora") {
     document.getElementById("limp-sub").textContent = usuario.nombre + (usuario.planta ? " · " + usuario.planta : "");
+    document.getElementById("nav-mis").lastChild.textContent = "Mis tareas";
     showScreen("limpiadora");
     cargarHabitacionesParaForm();
+    showTab("mis");
   } else if (rol === "gobernanta") {
     // Gobernanta reporta como limpiadora y además ve todas las incidencias (solo lectura) en su propia pestaña
     document.getElementById("limp-sub").textContent = usuario.nombre + " · Gobernanta";
@@ -598,7 +602,20 @@ async function cargarMis() {
       data = data.filter(i => i.reporter && i.reporter.id === usuario.id);
     }
     cache = data;
-    l.innerHTML = data.length ? data.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">No has enviado ningún aviso todavía.</div>';
+    if (usuario.rol === "limpiadora") {
+      const asignadas = data.filter(i => i.asignado && i.asignado.id === usuario.id);
+      const propias = data.filter(i => !(i.asignado && i.asignado.id === usuario.id));
+      let html = "";
+      if (asignadas.length) {
+        html += `<span class="section-label">Asignadas a ti</span>` + asignadas.map(i => cardHtml(i, true, false)).join("");
+      }
+      if (propias.length) {
+        html += `<span class="section-label" style="margin-top:${asignadas.length ? '18px' : '0'}">Tus avisos</span>` + propias.map(i => cardHtml(i, true, false)).join("");
+      }
+      l.innerHTML = html || '<div class="empty">No tienes tareas asignadas ni avisos todavía.</div>';
+    } else {
+      l.innerHTML = data.length ? data.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">No has enviado ningún aviso todavía.</div>';
+    }
   } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
 }
 
@@ -606,7 +623,7 @@ async function cargarMis() {
 let filtroGobSel = "todos";
 
 function buildFiltrosGob() {
-  const opts = [["todos","Todos"],["recibido","Recibidos"],["en_curso","En curso"],["esperando_material","Esperando"],["resuelto","Resueltos"]];
+  const opts = [["todos","Todos"],["recibido","Recibidos"],["asignado","Asignados"],["en_curso","En curso"],["resuelto","Resueltos"]];
   document.getElementById("filtros-gob").innerHTML = opts.map(([k,l]) => `<span class="chip ${k===filtroGobSel?'sel':''}" onclick="setFiltroGob('${k}')">${l}</span>`).join("");
 }
 function setFiltroGob(f) { filtroGobSel = f; buildFiltrosGob(); renderTodasGob(); }
@@ -634,7 +651,7 @@ let limpiadorasCache = [];
 function verDetalleLimpiadora(id) {
   const inc = cache.find(i => i.id === id);
   if (!inc) return;
-  const tipo = inc.tipo_solicitud === "limpieza" ? "🧹 Solicitud de limpieza" : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
+  const tipo = inc.tipo_solicitud === "limpieza" ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza") : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
   const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const comentarios = inc.comentarios_internos || [];
   const esPropia = inc.reporter && inc.reporter.id === usuario.id;
@@ -642,7 +659,7 @@ function verDetalleLimpiadora(id) {
   const gestiona = puedeGestionarJS(inc);
   const puedeComentar = puedeComentarJS(inc);
   const puedeAsignar = usuario.rol === "gobernanta" && inc.tipo_solicitud === "limpieza";
-  const estados = ["recibido","en_curso","esperando_material","resuelto"];
+  const estados = ["recibido","en_curso","resuelto"];
   estadoPendienteGob = inc.estado;
 
   document.getElementById("sheet-detalle-body").innerHTML = `
@@ -650,7 +667,7 @@ function verDetalleLimpiadora(id) {
     <p style="font-size:11px;color:var(--slate);margin-bottom:10px">${inc.codigo||""}${!esPropia && inc.reporter ? ' · ' + inc.reporter.nombre : ''}</p>
     ${inc.asignado ? `<p style="font-size:12px;color:var(--slate);margin-bottom:14px">Asignada a <b>${inc.asignado.nombre}</b></p>` : ""}
     ${gestiona ? `
-      <span class="section-label">Estado</span>
+      <span class="section-label">Estado actual: ${ESTADOS[inc.estado]||inc.estado}</span>
       <div class="estado-grid" id="estado-grid-gob" style="margin-bottom:14px">
         ${estados.map(e=>`<button type="button" class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoGob(this)">${ESTADOS[e]}</button>`).join("")}
       </div>
@@ -744,7 +761,7 @@ async function enviarComentarioGob(id) {
 let soloLecturaGobernanta = false;
 
 function buildFiltros() {
-  const opts = [["todos","Todos"],["recibido","Recibidos"],["en_curso","En curso"],["esperando_material","Esperando"]];
+  const opts = [["todos","Todos"],["recibido","Recibidos"],["asignado","Asignados"],["en_curso","En curso"],["esperando_material","Esperando"]];
   document.getElementById("filtros").innerHTML = opts.map(([k,l]) => `<span class="chip ${k===filtroSel?'sel':''}" onclick="setFiltro('${k}')">${l}</span>`).join("");
 }
 function setFiltro(f) { filtroSel = f; buildFiltros(); renderTodas(); }
@@ -810,11 +827,11 @@ function puedeComentarJS(inc) {
 }
 
 function cardHtml(inc, withAction = false, mantView = false) {
-  const bc = {recibido:"var(--slate)",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
+  const bc = {recibido:"var(--slate)",asignado:"#3D5A99",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
   const esHuesped = inc.origen === "huesped";
   const esLimpieza = inc.tipo_solicitud === "limpieza";
   const tipo = esLimpieza
-    ? "🧹 Solicitud de limpieza"
+    ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza")
     : inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
   const autor = esHuesped
     ? (inc.nombre_huesped ? `Huésped: ${inc.nombre_huesped}` : "Huésped")
@@ -860,11 +877,11 @@ async function abrirDetalle(id) {
   estadoPendiente = inc.estado;
   prioPendiente = inc.prioridad;
   const esLimpieza = inc.tipo_solicitud === "limpieza";
-  const tipo = esLimpieza ? "🧹 Solicitud de limpieza" : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
+  const tipo = esLimpieza ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza") : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
   const fotos = inc.fotos||[];
   const fotosHtml = fotos.map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const addBtn = fotos.length < 3 ? `<div class="foto-add" onclick="triggerFotoMant(${id})" style="aspect-ratio:1;max-width:72px"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span></div>` : "";
-  const estados = ["recibido","en_curso","esperando_material","resuelto"];
+  const estados = esLimpieza ? ["recibido","en_curso","resuelto"] : ["recibido","en_curso","esperando_material","resuelto"];
   const prios = ["urgente","normal","baja"];
   const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
   const puedeAsignar = usuario.rol === "admin" && esLimpieza;
@@ -884,7 +901,7 @@ async function abrirDetalle(id) {
     <div class="prio-row" id="prio-grid-detalle" style="margin-bottom:14px">
       ${prios.map(p=>`<button type="button" class="prio-btn prio-${p} ${inc.prioridad===p?'sel-'+p:''}" data-prio="${p}" onclick="selPrioDetalle(this)">${prioLabels[p]}</button>`).join("")}
     </div>
-    <span class="section-label">Estado</span>
+    <span class="section-label">Estado actual: ${ESTADOS[inc.estado]||inc.estado}</span>
     <div class="estado-grid" id="estado-grid-detalle" style="margin-bottom:14px">
       ${estados.map(e=>`<button type="button" class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
     </div>
