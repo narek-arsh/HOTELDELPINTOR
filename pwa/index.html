@@ -629,32 +629,104 @@ function renderTodasGob() {
   l.innerHTML = incs.length ? incs.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">Sin incidencias en esta categoría.</div>';
 }
 
+let limpiadorasCache = [];
+
 function verDetalleLimpiadora(id) {
   const inc = cache.find(i => i.id === id);
   if (!inc) return;
-  const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
+  const tipo = inc.tipo_solicitud === "limpieza" ? "🧹 Solicitud de limpieza" : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
   const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const comentarios = inc.comentarios_internos || [];
   const esPropia = inc.reporter && inc.reporter.id === usuario.id;
-  const autorApertura = esPropia ? "Tu aviso inicial" : (inc.reporter?.nombre || "Reportante");
-  const puedeEscribir = usuario.rol === "gobernanta";
+  const autorApertura = esPropia ? "Tu aviso inicial" : (inc.nombre_huesped ? `Huésped: ${inc.nombre_huesped}` : (inc.reporter?.nombre || "Reportante"));
+  const gestiona = puedeGestionarJS(inc);
+  const puedeComentar = puedeComentarJS(inc);
+  const puedeAsignar = usuario.rol === "gobernanta" && inc.tipo_solicitud === "limpieza";
+  const estados = ["recibido","en_curso","esperando_material","resuelto"];
+  estadoPendienteGob = inc.estado;
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button type="button" class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
-    <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""}${!esPropia && inc.reporter ? ' · ' + inc.reporter.nombre : ''}</p>
-    <span class="section-label">Estado</span>
-    <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
+    <p style="font-size:11px;color:var(--slate);margin-bottom:10px">${inc.codigo||""}${!esPropia && inc.reporter ? ' · ' + inc.reporter.nombre : ''}</p>
+    ${inc.asignado ? `<p style="font-size:12px;color:var(--slate);margin-bottom:14px">Asignada a <b>${inc.asignado.nombre}</b></p>` : ""}
+    ${gestiona ? `
+      <span class="section-label">Estado</span>
+      <div class="estado-grid" id="estado-grid-gob" style="margin-bottom:14px">
+        ${estados.map(e=>`<button type="button" class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoGob(this)">${ESTADOS[e]}</button>`).join("")}
+      </div>
+    ` : `
+      <span class="section-label">Estado</span>
+      <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
+    `}
+    ${puedeAsignar ? `
+      <span class="section-label">Asignar a limpiadora</span>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <select id="sel-limpiadora-${id}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--r);font-size:13px"><option value="">Cargando...</option></select>
+        <button type="button" class="btn btn-secondary btn-sm" style="width:auto;padding:0 14px;margin-top:0" onclick="asignarLimpiadora(${id})">Asignar</button>
+      </div>
+    ` : ""}
     <span class="section-label">Conversación</span>
     <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.notas, autorApertura, inc.id)}</div>
-    ${puedeEscribir ? `
+    ${puedeComentar ? `
       <div class="field" style="margin-bottom:14px">
         <textarea id="nuevo-comentario-gob" rows="2" placeholder="Escribe un mensaje..."></textarea>
         <button type="button" class="btn btn-secondary btn-sm" onclick="enviarComentarioGob(${id})" style="margin-top:6px">Enviar mensaje</button>
       </div>
     ` : ""}
+    ${gestiona ? `<button type="button" class="btn btn-primary" onclick="guardarEstadoGob(${id})" style="margin-bottom:18px">Guardar cambios</button>` : ""}
     ${fotos ? `<span class="section-label">Fotos</span><div class="foto-grid">${fotos}</div>` : ""}
   `;
   openSheet("sheet-detalle");
+  if (puedeAsignar) cargarLimpiadorasEnSelect(id, inc.asignado?.id);
+}
+
+function selEstadoGob(btn) {
+  document.querySelectorAll("#estado-grid-gob .estado-btn").forEach(b => { b.className = "estado-btn"; });
+  btn.classList.add("sel-" + btn.dataset.estado);
+  estadoPendienteGob = btn.dataset.estado;
+}
+
+async function guardarEstadoGob(id) {
+  const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({estado: estadoPendienteGob})
+  });
+  if (!r.ok) return;
+  const upd = await r.json();
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  closeSheet("sheet-detalle");
+  if (document.getElementById("tab-todas-gob").style.display !== "none") renderTodasGob();
+  if (document.getElementById("tab-mis").style.display !== "none") cargarMis();
+}
+
+async function cargarLimpiadorasEnSelect(id, asignadoActualId) {
+  const sel = document.getElementById(`sel-limpiadora-${id}`);
+  if (!sel) return;
+  try {
+    if (!limpiadorasCache.length) {
+      const r = await fetch(`${API}/api/admin/limpiadoras`, {headers:{"Authorization":`Bearer ${token}`}});
+      if (r.ok) limpiadorasCache = await r.json();
+    }
+    sel.innerHTML = '<option value="">Selecciona limpiadora...</option>' +
+      limpiadorasCache.map(l => `<option value="${l.id}" ${asignadoActualId===l.id?'selected':''}>${l.nombre}${l.planta?(' · '+l.planta):''}</option>`).join("");
+  } catch { sel.innerHTML = '<option value="">Error al cargar</option>'; }
+}
+
+async function asignarLimpiadora(id) {
+  const sel = document.getElementById(`sel-limpiadora-${id}`);
+  const usuarioId = sel && sel.value;
+  if (!usuarioId) return;
+  const r = await fetch(`${API}/api/incidencias/${id}/asignar`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({usuario_id: parseInt(usuarioId)})
+  });
+  if (!r.ok) return;
+  const upd = await r.json();
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  verDetalleLimpiadora(id);
+  renderTodasGob();
 }
 
 async function enviarComentarioGob(id) {
@@ -722,6 +794,21 @@ async function cargarResueltas() {
 }
 
 // ── Card ──────────────────────────────────────────────────────
+function puedeGestionarJS(inc) {
+  const rol = usuario.rol;
+  if (rol === "admin") return true;
+  if (rol === "mantenimiento") return inc.tipo_solicitud !== "limpieza";
+  if (rol === "gobernanta") return inc.tipo_solicitud === "limpieza";
+  if (rol === "limpiadora") return inc.asignado && inc.asignado.id === usuario.id;
+  return false;
+}
+
+function puedeComentarJS(inc) {
+  if (puedeGestionarJS(inc)) return true;
+  if (usuario.rol === "gobernanta" && inc.reporter && inc.reporter.id === usuario.id) return true;
+  return false;
+}
+
 function cardHtml(inc, withAction = false, mantView = false) {
   const bc = {recibido:"var(--slate)",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
   const esHuesped = inc.origen === "huesped";
@@ -736,10 +823,12 @@ function cardHtml(inc, withAction = false, mantView = false) {
   const diff = Math.floor((Date.now()-fecha)/60000);
   const ft = diff < 60 ? `hace ${diff}m` : diff < 1440 ? `hace ${Math.floor(diff/60)}h` : fecha.toLocaleDateString("es-ES");
   const fotos = (inc.fotos||[]).map(f=>`<img src="${f.url}" onclick="openFotoViewer('${f.url}')" style="width:44px;height:44px;object-fit:cover;border-radius:3px;border:1px solid var(--border);cursor:pointer">`).join("");
-  const btnLabel = mantView ? "Gestionar" : "Ver detalle";
+  const gestionable = mantView ? true : puedeGestionarJS(inc);
+  const btnLabel = gestionable ? "Gestionar" : "Ver detalle";
   const btnFn = mantView ? `abrirDetalle(${inc.id})` : `verDetalleLimpiadora(${inc.id})`;
   const btn = withAction ? `<button type="button" onclick="${btnFn}" style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--slate-bg);font-size:11px;font-weight:600;color:var(--ink);cursor:pointer">${btnLabel}</button>` : "";
   const huespedBadge = esHuesped ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:2px;background:#EDE4F7;color:#6B3FA0;text-transform:uppercase">Huésped</span>` : "";
+  const asignadoTxt = inc.asignado ? `<div style="font-size:11px;color:var(--slate);margin-top:2px">→ ${inc.asignado.nombre}</div>` : "";
   return `<div class="card" style="border-left:3px solid ${bc}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div>
@@ -755,12 +844,14 @@ function cardHtml(inc, withAction = false, mantView = false) {
     </div>
     ${fotos ? `<div style="display:flex;gap:5px;margin-top:10px">${fotos}</div>` : ""}
     <div class="card-meta">${autor}${inc.reporter?.planta ? " · " + inc.reporter.planta : ""} · ${ft}</div>
+    ${asignadoTxt}
     ${btn}
   </div>`;
 }
 
 // ── Detalle gestión (mantenimiento/admin) ───────────────────────
 let estadoPendiente = null;
+let estadoPendienteGob = null;
 let prioPendiente = null;
 
 async function abrirDetalle(id) {
@@ -768,17 +859,27 @@ async function abrirDetalle(id) {
   if (!inc) return;
   estadoPendiente = inc.estado;
   prioPendiente = inc.prioridad;
-  const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
+  const esLimpieza = inc.tipo_solicitud === "limpieza";
+  const tipo = esLimpieza ? "🧹 Solicitud de limpieza" : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
   const fotos = inc.fotos||[];
   const fotosHtml = fotos.map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
   const addBtn = fotos.length < 3 ? `<div class="foto-add" onclick="triggerFotoMant(${id})" style="aspect-ratio:1;max-width:72px"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span></div>` : "";
   const estados = ["recibido","en_curso","esperando_material","resuelto"];
   const prios = ["urgente","normal","baja"];
   const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
+  const puedeAsignar = usuario.rol === "admin" && esLimpieza;
 
   document.getElementById("sheet-detalle-body").innerHTML = `
     <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button type="button" class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
-    <p style="font-size:11px;color:var(--slate);margin-bottom:16px">${inc.codigo||""} · ${inc.reporter?.nombre||""} · ${ROL_LABELS[inc.reporter?.rol]||""}</p>
+    <p style="font-size:11px;color:var(--slate);margin-bottom:10px">${inc.codigo||""} · ${inc.reporter?.nombre||inc.nombre_huesped||""} · ${ROL_LABELS[inc.reporter?.rol]||(inc.origen==="huesped"?"Huésped":"")}</p>
+    ${inc.asignado ? `<p style="font-size:12px;color:var(--slate);margin-bottom:14px">Asignada a <b>${inc.asignado.nombre}</b></p>` : ""}
+    ${puedeAsignar ? `
+      <span class="section-label">Asignar a limpiadora</span>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <select id="sel-limpiadora-${id}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--r);font-size:13px"><option value="">Cargando...</option></select>
+        <button type="button" class="btn btn-secondary btn-sm" style="width:auto;padding:0 14px;margin-top:0" onclick="asignarLimpiadora(${id})">Asignar</button>
+      </div>
+    ` : ""}
     <span class="section-label">Prioridad</span>
     <div class="prio-row" id="prio-grid-detalle" style="margin-bottom:14px">
       ${prios.map(p=>`<button type="button" class="prio-btn prio-${p} ${inc.prioridad===p?'sel-'+p:''}" data-prio="${p}" onclick="selPrioDetalle(this)">${prioLabels[p]}</button>`).join("")}
@@ -789,7 +890,7 @@ async function abrirDetalle(id) {
     </div>
     <span class="section-label">Conversación</span>
     <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
-      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre, inc.id)}
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id)}
     </div>
     <div class="field" style="margin-bottom:14px">
       <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
@@ -800,6 +901,7 @@ async function abrirDetalle(id) {
     <input type="file" id="foto-mant-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoMant(event,${id})">
   `;
   openSheet("sheet-detalle");
+  if (puedeAsignar) cargarLimpiadorasEnSelect(id, inc.asignado?.id);
 }
 
 function comentariosInternosHtml(comentarios, notaApertura, autorApertura, incId) {
