@@ -1,88 +1,80 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from app.database import engine, sync_missing_columns
-from app.models.models import Base
-from app.routers import auth, incidencias, admin, websocket, fotos, perfil, notificaciones, huesped
-from app.auth import hash_password
-from app.database import SessionLocal
-from app.models.models import Usuario, RolEnum
-from app.notifications import init_firebase
-from dotenv import load_dotenv
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql.sqltypes import Enum as SAEnumType
 import os
 
-load_dotenv()
-
-Base.metadata.create_all(bind=engine)
-sync_missing_columns()
-
-app = FastAPI(title="Hotel del Pintor", version="2.0.0", docs_url="/docs")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+DATABASE_URL = os.environ.get("DATABASE_URL", "").replace(
+    "postgresql://", "postgresql+pg8000://"
 )
 
-app.include_router(auth.router)
-app.include_router(incidencias.router)
-app.include_router(admin.router)
-app.include_router(websocket.router)
-app.include_router(fotos.router)
-app.include_router(perfil.router)
-app.include_router(notificaciones.router)
-app.include_router(huesped.router)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL no está definida")
 
-PWA_DIR = os.path.join(os.path.dirname(__file__), "pwa")
-if os.path.exists(PWA_DIR):
-    app.mount("/static", StaticFiles(directory=PWA_DIR), name="static")
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-    @app.get("/manifest.json")
-    def manifest(): return FileResponse(os.path.join(PWA_DIR, "manifest.json"))
-
-    @app.get("/sw.js")
-    def sw(): return FileResponse(os.path.join(PWA_DIR, "sw.js"))
-
-    @app.get("/firebase-messaging-sw.js")
-    def fcm_sw(): return FileResponse(os.path.join(PWA_DIR, "firebase-messaging-sw.js"))
-
-    @app.get("/icon-192.png")
-    def icon192(): return FileResponse(os.path.join(PWA_DIR, "icon-192.png"))
-
-    @app.get("/icon-512.png")
-    def icon512(): return FileResponse(os.path.join(PWA_DIR, "icon-512.png"))
-
-    @app.get("/logo-login.png")
-    def logo_login(): return FileResponse(os.path.join(PWA_DIR, "logo-login.png"))
-
-    @app.get("/h/{token}", response_class=FileResponse)
-    def huesped_page(token: str): return FileResponse(os.path.join(PWA_DIR, "huesped.html"))
-
-    @app.get("/")
-    def pwa(): return FileResponse(os.path.join(PWA_DIR, "index.html"))
-else:
-    @app.get("/")
-    def root(): return {"status": "ok", "app": "Hotel del Pintor v2"}
-
-
-@app.on_event("startup")
-def init_db():
-    init_firebase()
+def get_db():
     db = SessionLocal()
     try:
-        existe = db.query(Usuario).filter(Usuario.rol == RolEnum.admin).first()
-        if not existe:
-            db.add(Usuario(
-                nombre="Administrador",
-                username="admin",
-                password_hash=hash_password("Admin2024"),
-                rol=RolEnum.admin,
-                activo=True,
-            ))
-            db.commit()
-            print("Admin creado: admin / Admin2024")
+        yield db
     finally:
         db.close()
+
+
+def sync_missing_columns():
+    """
+    create_all() solo crea tablas nuevas: nunca añade columnas a tablas que
+    ya existen en la base real. Si el modelo gana una columna nueva (como
+    pasó con Habitacion.token, o con Incidencia.origen/tipo_solicitud/
+    nombre_huesped al añadir el flujo de huéspedes) y la tabla ya existía
+    en Postgres, cualquier INSERT que use esa columna falla con
+    'column ... does not exist'.
+
+    Este parche revisa, en cada arranque, si faltan columnas del modelo en
+    la tabla real y las añade con ALTER TABLE. Para columnas de tipo Enum
+    (como origen/tipo_solicitud), Postgres exige que el TYPE exista antes
+    de poder usarlo en una columna, así que se crea primero con
+    CREATE TYPE si no existe.
+
+    No borra ni modifica filas existentes. Es un parche mínimo mientras
+    no se use Alembic.
+    """
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
+
+    with engine.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue  # tabla nueva -> create_all() ya la crea completa
+            existing_cols = {c["name"] for c in inspector.get_columns(table.name)}
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue
+
+                # Si la columna es un Enum de Postgres, el TYPE debe existir
+                # antes de poder usarlo en ADD COLUMN.
+                if isinstance(col.type, SAEnumType):
+                    try:
+                        col.type.create(bind=conn, checkfirst=True)
+                    except Exception as e:
+                        print(f"[sync_missing_columns] No se pudo crear el tipo enum para {table.name}.{col.name}: {e}")
+
+                col_type = col.type.compile(dialect=engine.dialect)
+                stmt = f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'
+                try:
+                    conn.execute(text(stmt))
+                    print(f"[sync_missing_columns] Añadida columna {table.name}.{col.name}")
+                except Exception as e:
+                    print(f"[sync_missing_columns] No se pudo añadir {table.name}.{col.name}: {e}")
+                    continue
+
+                if col.unique:
+                    idx_name = f"ix_{table.name}_{col.name}"
+                    try:
+                        conn.execute(text(
+                            f'CREATE UNIQUE INDEX IF NOT EXISTS "{idx_name}" ON "{table.name}" ("{col.name}")'
+                        ))
+                    except Exception as e:
+                        print(f"[sync_missing_columns] No se pudo indexar {table.name}.{col.name}: {e}")
