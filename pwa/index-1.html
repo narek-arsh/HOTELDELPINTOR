@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#9E312C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="H. Pintor">
+<title>Hotel del Pintor</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --ink: #222222; --ink2: #3A3A3A;
+  --gold: #9E312C; --gold-bg: #F6E6E5;
+  --emerald: #1A6B42; --emer-bg: #E6F4ED;
+  --crimson: #B8262A; --crim-bg: #FBEAEA;
+  --slate: #5A5A5A; --slate-bg: #F2F3F5;
+  --border: #E5E5E5; --bg: #F7F7F8; --surface: #FFFFFF; --text: #222222;
+  --r: 3px; --r2: 4px;
+}
+body { font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+.screen { display: none; min-height: 100vh; flex-direction: column; }
+.screen.active { display: flex; }
+.topbar { background: var(--gold); padding: 12px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #7A241F; }
+.topbar-brand { color: #fff; font-weight: 600; font-size: 14px; flex: 1; }
+.topbar-meta { color: #ffffff55; font-size: 11px; display: block; font-weight: 400; }
+.topbar-action { background: transparent; border: 1px solid #ffffff25; border-radius: var(--r); color: #ffffff88; font-size: 11px; font-weight: 500; padding: 5px 10px; cursor: pointer; }
+.content { flex: 1; padding: 20px 16px; max-width: 520px; width: 100%; margin: 0 auto; }
+#screen-login { background: var(--gold); justify-content: center; align-items: center; padding: 24px; }
+.login-card { background: var(--surface); border-radius: var(--r2); padding: 32px 28px; width: 100%; max-width: 360px; border: 1px solid rgba(255,255,255,0.08); }
+.login-header { margin-bottom: 28px; }
+.login-header h1 { font-size: 17px; font-weight: 700; color: var(--ink); }
+.login-header p { color: var(--slate); font-size: 12px; margin-top: 3px; }
+.login-divider { width: 32px; height: 2px; background: var(--gold); margin: 10px 0; border-radius: 1px; }
+.field { margin-bottom: 14px; }
+.field-label { display: block; font-size: 10px; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
+.field input, .field textarea, .field select {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r);
+  font-size: 14px; outline: none; font-family: inherit; color: var(--text); background: var(--surface);
+  -webkit-appearance: none; appearance: none;
+}
+.field input:focus, .field textarea:focus, .field select:focus { border-color: var(--ink); }
+.field textarea { resize: none; line-height: 1.5; }
+.btn { display: block; width: 100%; padding: 11px 16px; border: none; border-radius: var(--r); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+.btn:active { opacity: 0.8; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--ink); color: #fff; }
+.btn-secondary { background: var(--slate-bg); color: var(--ink); border: 1px solid var(--border); }
+.btn-sm { padding: 7px 14px; font-size: 12px; width: auto; display: inline-block; }
+.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.type-btn { padding: 12px 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--slate); text-align: left; line-height: 1.3; }
+.type-btn.sel { border-color: var(--ink); background: var(--ink); color: #fff; font-weight: 600; }
+.prio-row { display: flex; gap: 6px; }
+.prio-btn { flex: 1; padding: 9px 4px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 11px; font-weight: 600; color: var(--slate); text-align: center; }
+.prio-btn.sel-urgente { border-color: var(--crimson); background: var(--crim-bg); color: var(--crimson); }
+.prio-btn.sel-normal { border-color: var(--gold); background: var(--gold-bg); color: var(--gold); }
+.prio-btn.sel-baja { border-color: var(--emerald); background: var(--emer-bg); color: var(--emerald); }
+.card { background: var(--surface); border-radius: var(--r2); border: 1px solid var(--border); padding: 14px 16px; margin-bottom: 8px; }
+.card-room { font-size: 16px; font-weight: 700; color: var(--ink); }
+.card-type { font-size: 13px; color: var(--text); margin-top: 2px; }
+.card-meta { font-size: 11px; color: var(--slate); margin-top: 8px; }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+.badge-recibido { background: var(--slate-bg); color: var(--slate); }
+.badge-asignado { background: #E4ECFA; color: #3D5A99; }
+.badge-en_curso { background: var(--gold-bg); color: var(--gold); }
+.badge-esperando_material { background: #EDF0F5; color: #4A5A72; }
+.badge-resuelto { background: var(--emer-bg); color: var(--emerald); }
+.badge-urgente { background: var(--crim-bg); color: var(--crimson); }
+.badge-normal { background: var(--gold-bg); color: var(--gold); }
+.badge-baja { background: var(--emer-bg); color: var(--emerald); }
+.badge-admin { background: #EDE4F7; color: #6B3FA0; }
+.bottom-nav { background: var(--surface); border-top: 1px solid var(--border); display: flex; position: sticky; bottom: 0; }
+.nav-btn { flex: 1; padding: 10px 8px 14px; border: none; background: none; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--slate); display: flex; flex-direction: column; align-items: center; gap: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+.nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.nav-btn.active { color: var(--ink); }
+.foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.foto-thumb { aspect-ratio: 1; border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); cursor: pointer; }
+.foto-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foto-add { aspect-ratio: 1; border-radius: var(--r); border: 1px dashed var(--border); background: var(--slate-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; gap: 4px; color: var(--slate); }
+.foto-add svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.foto-add span { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+#foto-input { display: none; }
+.estado-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.estado-btn { padding: 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 11px; font-weight: 600; color: var(--slate); text-align: center; }
+.estado-btn.sel-recibido { border-color: var(--slate); background: var(--slate-bg); color: var(--slate); }
+.estado-btn.sel-en_curso { border-color: var(--gold); background: var(--gold-bg); color: var(--gold); }
+.estado-btn.sel-esperando_material { border-color: #4A5A72; background: #EDF0F5; color: #4A5A72; }
+.estado-btn.sel-resuelto { border-color: var(--emerald); background: var(--emer-bg); color: var(--emerald); }
+.overlay { display: none; position: fixed; inset: 0; background: #0008; z-index: 200; align-items: flex-end; }
+.overlay.open { display: flex; }
+.sheet { background: var(--surface); border-radius: var(--r2) var(--r2) 0 0; padding: 24px 20px 36px; width: 100%; max-height: 88vh; overflow-y: auto; }
+.sheet-title { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; }
+.sheet-close { background: none; border: none; font-size: 20px; color: var(--slate); cursor: pointer; line-height: 1; }
+.otro-box { margin-top: 8px; padding: 12px; background: var(--crim-bg); border-radius: var(--r); border: 1px solid #e8c0c0; }
+.otro-box .field-label { color: var(--crimson); }
+.otro-box textarea { border-color: #e8b0b0; margin-top: 5px; }
+.otro-hint { font-size: 11px; color: var(--crimson); margin-top: 4px; }
+.err { color: var(--crimson); font-size: 12px; margin-top: 6px; }
+.ok { color: var(--emerald); font-size: 12px; margin-top: 6px; }
+.loading { text-align: center; padding: 40px; color: var(--slate); font-size: 13px; }
+.empty { text-align: center; padding: 48px 20px; color: var(--slate); font-size: 13px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.section-label { font-size: 10px; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; display: block; }
+.success { text-align: center; padding: 48px 20px; }
+.success-icon { font-size: 48px; margin-bottom: 14px; }
+.success h2 { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.success p { color: var(--slate); font-size: 13px; margin-bottom: 24px; }
+.foto-viewer { display: none; position: fixed; inset: 0; background: #000d; z-index: 300; align-items: center; justify-content: center; }
+.foto-viewer.open { display: flex; }
+.foto-viewer img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: var(--r); }
+.foto-viewer-close { position: absolute; top: 16px; right: 16px; background: #fff2; border: none; color: #fff; font-size: 24px; cursor: pointer; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+.toggle { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .track { position: absolute; inset: 0; border-radius: 10px; cursor: pointer; }
+.toggle .knob { position: absolute; width: 16px; height: 16px; top: 2px; background: #fff; border-radius: 50%; pointer-events: none; }
+.chip { padding: 5px 10px; border-radius: 3px; border: 1px solid var(--border); font-size: 11px; font-weight: 600; cursor: pointer; }
+.chip.sel { background: var(--ink); color: #fff; border-color: var(--ink); }
+.chip:not(.sel) { background: var(--surface); color: var(--slate); }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <div class="login-header" style="text-align:center">
+      <img src="/logo-login.png" alt="Hotel del Pintor" style="width:88px;height:88px;object-fit:contain;margin-bottom:10px">
+      <h1>Hotel del Pintor</h1>
+      <p>Sistema de mantenimiento</p>
+    </div>
+    <div class="field">
+      <label class="field-label">Usuario</label>
+      <input type="text" id="login-user" placeholder="tu_usuario" autocomplete="username">
+    </div>
+    <div class="field">
+      <label class="field-label">Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password">
+    </div>
+    <div id="login-err" class="err" style="display:none"></div>
+    <button type="button" class="btn btn-primary" id="login-btn" onclick="doLogin()" style="margin-top:8px">Acceder</button>
+  </div>
+</div>
+
+<!-- ══ LIMPIADORA / GOBERNANTA (reportar) ════════════════════ -->
+<div id="screen-limpiadora" class="screen">
+  <div class="topbar">
+    <div style="flex:1">
+      <span class="topbar-brand">Hotel del Pintor</span>
+      <span class="topbar-meta" id="limp-sub"></span>
+    </div>
+    <button type="button" class="topbar-action" onclick="openSheet('sheet-perfil')">Perfil</button>
+    <button type="button" class="topbar-action" onclick="logout()" style="margin-left:6px">Salir</button>
+  </div>
+
+  <div id="tab-nueva" class="content">
+    <div id="form-wrap">
+      <span class="section-label">Nuevo aviso de incidencia</span>
+
+      <div class="field">
+        <label class="field-label">Habitación *</label>
+        <select id="f-hab">
+          <option value="">Selecciona habitación...</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Tipo *</label>
+        <div class="type-grid">
+          <button type="button" class="type-btn" data-tipo="bombilla" onclick="selTipo(this)">Cambio de bombilla</button>
+          <button type="button" class="type-btn" data-tipo="puerta" onclick="selTipo(this)">Puerta / cerradura</button>
+          <button type="button" class="type-btn" data-tipo="fontaneria" onclick="selTipo(this)">Fontanería</button>
+          <button type="button" class="type-btn" data-tipo="calefaccion" onclick="selTipo(this)">Calefacción / Aire</button>
+          <button type="button" class="type-btn" data-tipo="mueble" onclick="selTipo(this)">Mobiliario</button>
+          <button type="button" class="type-btn" data-tipo="otro" onclick="selTipo(this)">Otro (especificar)</button>
+        </div>
+        <div id="otro-box" class="otro-box" style="display:none">
+          <label class="field-label">Descripción del problema *</label>
+          <textarea id="f-desc" rows="2" placeholder="Describe qué hay que hacer..."></textarea>
+          <div class="otro-hint">Campo obligatorio para continuar</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Fotos (máx. 3)</label>
+        <div class="foto-grid" id="fotos-grid">
+          <div class="foto-add" onclick="document.getElementById('foto-input').click()">
+            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>Añadir</span>
+          </div>
+        </div>
+        <input type="file" id="foto-input" accept="image/*" capture="environment" multiple onchange="onFotoSel(event)">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Notas adicionales</label>
+        <textarea id="f-notas" rows="2" placeholder="Cualquier detalle relevante..."></textarea>
+      </div>
+
+      <div id="form-err" class="err" style="display:none"></div>
+      <button type="button" class="btn btn-primary" id="send-btn" onclick="enviar()">Enviar aviso</button>
+    </div>
+
+    <div id="form-ok" class="success" style="display:none">
+      <div class="success-icon">✓</div>
+      <h2>Aviso enviado</h2>
+      <p>Mantenimiento lo recibirá en breve.</p>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="resetForm()">Nuevo aviso</button>
+    </div>
+  </div>
+
+  <div id="tab-mis" class="content" style="display:none">
+    <span class="section-label">Mis avisos</span>
+    <div id="mis-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <div id="tab-todas-gob" class="content" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="section-label" style="margin:0">Todas las incidencias</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="cargarTodasGob()" style="background:none;border:none;cursor:pointer;color:var(--slate);font-size:13px;font-weight:600">Actualizar</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px" id="filtros-gob"></div>
+    <div id="todas-gob-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <div id="tab-historico" class="content" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="section-label" style="margin:0">Histórico</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="cargarHistorico()" style="background:none;border:none;cursor:pointer;color:var(--slate);font-size:13px;font-weight:600">Actualizar</button>
+    </div>
+    <div id="historico-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button type="button" class="nav-btn active" id="nav-nueva" onclick="showTab('nueva')">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nuevo
+    </button>
+    <button type="button" class="nav-btn" id="nav-mis" onclick="showTab('mis')">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Mis avisos
+    </button>
+    <button type="button" class="nav-btn" id="nav-todas-gob" onclick="showTab('todas-gob')" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Todas
+    </button>
+    <button type="button" class="nav-btn" id="nav-historico" onclick="showTab('historico')" style="display:none">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Histórico
+    </button>
+  </nav>
+</div>
+
+<!-- ══ MANTENIMIENTO / GOBERNANTA (gestión) / ADMIN ═══════════ -->
+<div id="screen-mantenimiento" class="screen">
+  <div class="topbar">
+    <div style="flex:1">
+      <span class="topbar-brand">Hotel del Pintor</span>
+      <span class="topbar-meta" id="mant-sub"></span>
+    </div>
+    <button type="button" class="topbar-action" onclick="openSheet('sheet-perfil')">Perfil</button>
+    <button type="button" class="topbar-action" onclick="logout()" style="margin-left:6px">Salir</button>
+  </div>
+
+  <div id="tab-todas" class="content">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="section-label" style="margin:0">Incidencias</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="cargarTodas()" style="background:none;border:none;cursor:pointer;color:var(--slate);font-size:13px;font-weight:600">Actualizar</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px" id="filtros"></div>
+    <div class="field" id="filtro-usuario-wrap" style="display:none;margin-bottom:14px">
+      <select id="filtro-usuario" onchange="renderTodas()" style="width:auto;min-width:180px;display:inline-block">
+        <option value="">Todos los usuarios</option>
+      </select>
+    </div>
+    <div id="todas-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <div id="tab-resueltas" class="content" style="display:none">
+    <span class="section-label">Incidencias resueltas</span>
+    <div id="resueltas-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <div id="tab-usuarios" class="content" style="display:none">
+    <div id="storage-banner" style="display:none;margin-bottom:16px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="section-label" style="margin:0">Usuarios</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="openSheet('sheet-nuevo-usuario')" style="background:none;border:none;cursor:pointer;color:var(--ink);font-size:13px;font-weight:700">+ Nuevo</button>
+    </div>
+    <div id="usuarios-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <div id="tab-habitaciones" class="content" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span class="section-label" style="margin:0">Habitaciones</span>
+      <div style="flex:1"></div>
+      <button type="button" onclick="openSheet('sheet-nueva-habitacion')" style="background:none;border:none;cursor:pointer;color:var(--ink);font-size:13px;font-weight:700">+ Añadir</button>
+    </div>
+    <div id="habitaciones-lista"><div class="loading">Cargando...</div></div>
+  </div>
+
+  <nav class="bottom-nav" id="mant-nav">
+    <button type="button" class="nav-btn active" id="nav-todas" onclick="showTabMant('todas')">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Incidencias
+    </button>
+    <button type="button" class="nav-btn" id="nav-resueltas" onclick="showTabMant('resueltas')">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      Resueltas
+    </button>
+    <button type="button" class="nav-btn" id="nav-usuarios" onclick="showTabMant('usuarios')" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Usuarios
+    </button>
+    <button type="button" class="nav-btn" id="nav-habitaciones" onclick="showTabMant('habitaciones')" style="display:none">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      Habitaciones
+    </button>
+  </nav>
+</div>
+
+<!-- ══ SHEET PERFIL ════════════════════════════════════════ -->
+<div id="sheet-perfil" class="overlay" onclick="closeOverlayOut(event,'sheet-perfil')">
+  <div class="sheet">
+    <div class="sheet-title">Mi perfil<button type="button" class="sheet-close" onclick="closeSheet('sheet-perfil')">×</button></div>
+
+    <span class="section-label">Notificaciones</span>
+    <div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">Avisos en el dispositivo</div>
+        <div id="notif-status" style="font-size:11px;color:var(--slate);margin-top:2px">Comprobando...</div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" id="notif-btn" onclick="toggleNotificaciones()">Activar</button>
+    </div>
+
+    <span class="section-label">Cambiar contraseña</span>
+    <div class="field"><label class="field-label">Contraseña actual</label><input type="password" id="pw-actual" placeholder="••••••"></div>
+    <div class="field"><label class="field-label">Nueva contraseña</label><input type="password" id="pw-nueva" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field"><label class="field-label">Confirmar nueva</label><input type="password" id="pw-conf" placeholder="••••••"></div>
+    <div id="pw-err" class="err" style="display:none"></div>
+    <div id="pw-ok" class="ok" style="display:none">Contraseña actualizada correctamente</div>
+    <button type="button" class="btn btn-primary" onclick="cambiarPw()" style="margin-top:10px">Guardar cambios</button>
+  </div>
+</div>
+
+<!-- ══ SHEET DETALLE (mantenimiento/admin gestión) ═════════════ -->
+<div id="sheet-detalle" class="overlay" onclick="closeOverlayOut(event,'sheet-detalle')">
+  <div class="sheet" id="sheet-detalle-body"></div>
+</div>
+
+<!-- ══ SHEET NUEVO USUARIO ══════════════════════════════════ -->
+<div id="sheet-nuevo-usuario" class="overlay" onclick="closeOverlayOut(event,'sheet-nuevo-usuario')">
+  <div class="sheet">
+    <div class="sheet-title">Nuevo usuario<button type="button" class="sheet-close" onclick="closeSheet('sheet-nuevo-usuario')">×</button></div>
+    <div class="field"><label class="field-label">Nombre completo</label><input type="text" id="nu-nombre" placeholder="María García"></div>
+    <div class="field"><label class="field-label">Usuario</label><input type="text" id="nu-username" placeholder="maria"></div>
+    <div class="field"><label class="field-label">Contraseña</label><input type="password" id="nu-password" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field">
+      <label class="field-label">Rol</label>
+      <select id="nu-rol">
+        <option value="limpiadora">Limpiadora</option>
+        <option value="mantenimiento">Mantenimiento</option>
+        <option value="gobernanta">Gobernanta</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="field"><label class="field-label">Planta (opcional)</label><input type="text" id="nu-planta" placeholder="1ª planta"></div>
+    <div id="nu-err" class="err" style="display:none"></div>
+    <button type="button" class="btn btn-primary" onclick="crearUsuario()">Crear usuario</button>
+  </div>
+</div>
+
+<!-- ══ SHEET RESET PASSWORD (admin sobre otro usuario) ════════ -->
+<div id="sheet-reset-usuario" class="overlay" onclick="closeOverlayOut(event,'sheet-reset-usuario')">
+  <div class="sheet">
+    <div class="sheet-title"><span id="reset-usuario-titulo">Cambiar contraseña</span><button type="button" class="sheet-close" onclick="closeSheet('sheet-reset-usuario')">×</button></div>
+    <div class="field"><label class="field-label">Nueva contraseña</label><input type="password" id="ru-nueva" placeholder="Mínimo 6 caracteres"></div>
+    <div class="field"><label class="field-label">Confirmar</label><input type="password" id="ru-conf" placeholder="••••••"></div>
+    <div id="ru-err" class="err" style="display:none"></div>
+    <button type="button" class="btn btn-primary" onclick="resetUsuarioPw()">Guardar</button>
+  </div>
+</div>
+
+<!-- ══ SHEET NUEVA HABITACIÓN ══════════════════════════════ -->
+<div id="sheet-nueva-habitacion" class="overlay" onclick="closeOverlayOut(event,'sheet-nueva-habitacion')">
+  <div class="sheet">
+    <div class="sheet-title">Añadir habitaciones<button type="button" class="sheet-close" onclick="closeSheet('sheet-nueva-habitacion')">×</button></div>
+    <div class="field">
+      <label class="field-label">Números (uno por línea, o separados por coma)</label>
+      <textarea id="nh-numeros" rows="5" placeholder="101&#10;102&#10;201&#10;Apto. 3B"></textarea>
+    </div>
+    <div id="nh-err" class="err" style="display:none"></div>
+    <div id="nh-ok" class="ok" style="display:none"></div>
+    <button type="button" class="btn btn-primary" onclick="crearHabitaciones()">Añadir</button>
+  </div>
+</div>
+
+<!-- ══ SHEET QR ═══════════════════════════════════════════════ -->
+<div id="sheet-qr" class="overlay" onclick="closeOverlayOut(event,'sheet-qr')">
+  <div class="sheet" id="sheet-qr-body"></div>
+</div>
+
+<!-- ══ FOTO VIEWER ══════════════════════════════════════════ -->
+<div id="foto-viewer" class="foto-viewer" onclick="closeFotoViewer()">
+  <button class="foto-viewer-close">×</button>
+  <img id="foto-viewer-img" src="" alt="">
+</div>
+
+<script>
+const API = "https://hoteldelpintor-production.up.railway.app";
+let token = localStorage.getItem("hp_token");
+let usuario = JSON.parse(localStorage.getItem("hp_user") || "null");
+let tipoSel = null;
+let fotosNuevas = [];
+let filtroSel = "todos";
+let cache = [];
+let habitacionesCache = [];
+
+const ESTADOS = { recibido: "Recibido", asignado: "Asignado", en_curso: "En curso", esperando_material: "Esperando material", resuelto: "Resuelto" };
+const TIPOS = { bombilla:"Cambio de bombilla", puerta:"Puerta / cerradura", fontaneria:"Fontanería", calefaccion:"Calefacción / Aire", mueble:"Mobiliario", otro:"Otro" };
+const TIPOS_LIMPIEZA = { toallas:"🧺 Toallas", sabanas:"🛏️ Cambio de ropa de cama", amenities:"🧴 Amenities", limpieza_general:"🧹 Limpieza general", otro:"❓ Otra necesidad" };
+const ROL_LABELS = { admin: "Administrador", limpiadora: "Limpiadora", mantenimiento: "Mantenimiento", gobernanta: "Gobernanta" };
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener("load", () => {
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+  if (token && usuario) showApp();
+});
+
+// ── Login ─────────────────────────────────────────────────────
+async function doLogin() {
+  const user = document.getElementById("login-user").value.trim();
+  const pass = document.getElementById("login-pass").value;
+  const err = document.getElementById("login-err");
+  const btn = document.getElementById("login-btn");
+  err.style.display = "none";
+  btn.disabled = true; btn.textContent = "Accediendo...";
+  try {
+    const fd = new URLSearchParams();
+    fd.append("username", user); fd.append("password", pass);
+    const r = await fetch(`${API}/api/auth/login`, { method: "POST", headers: {"Content-Type":"application/x-www-form-urlencoded"}, body: fd });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.detail || "Error"; err.style.display = "block"; return; }
+    token = d.access_token; usuario = d.usuario;
+    localStorage.setItem("hp_token", token);
+    localStorage.setItem("hp_user", JSON.stringify(usuario));
+    showApp();
+  } catch { err.textContent = "Error de conexión"; err.style.display = "block"; }
+  finally { btn.disabled = false; btn.textContent = "Acceder"; }
+}
+document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+document.getElementById("login-user").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login-pass").focus(); });
+
+function showApp() {
+  if (!usuario) { showScreen("login"); return; }
+  const rol = usuario.rol;
+
+  if (rol === "limpiadora") {
+    document.getElementById("limp-sub").textContent = usuario.nombre + (usuario.planta ? " · " + usuario.planta : "");
+    document.getElementById("nav-mis").lastChild.textContent = "Mis tareas";
+    document.getElementById("nav-nueva").lastChild.textContent = "Abrir incidencia";
+    document.getElementById("nav-historico").style.display = "flex";
+    showScreen("limpiadora");
+    cargarHabitacionesParaForm();
+    showTab("mis");
+  } else if (rol === "gobernanta") {
+    // Gobernanta reporta como limpiadora y además ve todas las incidencias (solo lectura) en su propia pestaña
+    document.getElementById("limp-sub").textContent = usuario.nombre + " · Gobernanta";
+    document.getElementById("nav-todas-gob").style.display = "flex";
+    showScreen("limpiadora");
+    cargarHabitacionesParaForm();
+  } else if (rol === "mantenimiento" || rol === "admin") {
+    document.getElementById("mant-sub").textContent = usuario.nombre + (rol === "admin" ? " · Admin" : "");
+    document.getElementById("nav-usuarios").style.display = rol === "admin" ? "flex" : "none";
+    document.getElementById("nav-habitaciones").style.display = rol === "admin" ? "flex" : "none";
+    showScreen("mantenimiento");
+    buildFiltros();
+    cargarTodas();
+    setInterval(cargarTodas, 30000);
+  } else {
+    showScreen("login");
+    const e = document.getElementById("login-err");
+    e.textContent = "Usuario no autorizado.";
+    e.style.display = "block";
+  }
+}
+
+function showScreen(n) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById("screen-" + n).classList.add("active");
+}
+function logout() { localStorage.removeItem("hp_token"); localStorage.removeItem("hp_user"); token = null; usuario = null; location.reload(); }
+
+// ── Tabs ──────────────────────────────────────────────────────
+function showTab(t) {
+  ["nueva","mis","todas-gob","historico"].forEach(x => {
+    document.getElementById("tab-"+x).style.display = x===t ? "block" : "none";
+    document.getElementById("nav-"+x).classList.toggle("active", x===t);
+  });
+  if (t === "mis") cargarMis();
+  if (t === "todas-gob") { buildFiltrosGob(); cargarTodasGob(); }
+  if (t === "historico") cargarHistorico();
+}
+function showTabMant(t) {
+  ["todas","resueltas","usuarios","habitaciones"].forEach(x => {
+    document.getElementById("tab-"+x).style.display = x===t ? "block" : "none";
+    document.getElementById("nav-"+x).classList.toggle("active", x===t);
+  });
+  if (t === "resueltas") cargarResueltas();
+  if (t === "usuarios") cargarUsuarios();
+  if (t === "habitaciones") cargarHabitaciones();
+}
+
+// ── Habitaciones para el formulario (select) ───────────────────
+async function cargarHabitacionesParaForm() {
+  try {
+    const r = await fetch(`${API}/api/admin/habitaciones`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (!r.ok) return;
+    const data = await r.json();
+    const sel = document.getElementById("f-hab");
+    sel.innerHTML = '<option value="">Selecciona habitación...</option>' +
+      data.map(h => `<option value="${h.numero}">${h.numero}</option>`).join("");
+  } catch {}
+}
+
+// ── Form ──────────────────────────────────────────────────────
+function selTipo(btn) {
+  document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("sel"));
+  btn.classList.add("sel"); tipoSel = btn.dataset.tipo;
+  document.getElementById("otro-box").style.display = tipoSel === "otro" ? "block" : "none";
+  if (tipoSel === "otro") document.getElementById("f-desc").focus();
+}
+
+function onFotoSel(e) {
+  for (const f of e.target.files) { if (fotosNuevas.length < 3) fotosNuevas.push(f); }
+  renderFotosGrid(); e.target.value = "";
+}
+function renderFotosGrid() {
+  const g = document.getElementById("fotos-grid"); g.innerHTML = "";
+  fotosNuevas.forEach(f => {
+    const d = document.createElement("div"); d.className = "foto-thumb";
+    const url = URL.createObjectURL(f);
+    d.innerHTML = `<img src="${url}" onclick="openFotoViewer('${url}')">`;
+    g.appendChild(d);
+  });
+  if (fotosNuevas.length < 3) {
+    const a = document.createElement("div"); a.className = "foto-add";
+    a.innerHTML = `<svg viewBox="0 0 24 24" style="width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span>`;
+    a.onclick = () => document.getElementById("foto-input").click();
+    g.appendChild(a);
+  }
+}
+
+async function enviar() {
+  const hab = document.getElementById("f-hab").value;
+  const desc = document.getElementById("f-desc").value.trim();
+  const notas = document.getElementById("f-notas").value.trim();
+  const err = document.getElementById("form-err");
+  const btn = document.getElementById("send-btn");
+  err.style.display = "none";
+  if (!hab) { err.textContent = "Selecciona la habitación."; err.style.display = "block"; return; }
+  if (!tipoSel) { err.textContent = "Selecciona el tipo de incidencia."; err.style.display = "block"; return; }
+  if (tipoSel === "otro" && !desc) { err.textContent = "Describe el problema."; err.style.display = "block"; return; }
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body: JSON.stringify({habitacion:hab, tipo:tipoSel, descripcion:tipoSel==="otro"?desc:null, notas:notas||null})
+    });
+    if (r.status === 401) { logout(); return; }
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.detail||"Error"; err.style.display = "block"; return; }
+    if (fotosNuevas.length) {
+      for (const f of fotosNuevas) {
+        const fd = new FormData(); fd.append("file", f);
+        await fetch(`${API}/api/fotos/${d.id}`, {method:"POST",headers:{"Authorization":`Bearer ${token}`},body:fd});
+      }
+    }
+    document.getElementById("form-wrap").style.display = "none";
+    document.getElementById("form-ok").style.display = "block";
+  } catch { err.textContent = "Error de conexión."; err.style.display = "block"; }
+  finally { btn.disabled = false; btn.textContent = "Enviar aviso"; }
+}
+
+function resetForm() {
+  document.getElementById("f-hab").value = "";
+  document.getElementById("f-desc").value = "";
+  document.getElementById("f-notas").value = "";
+  document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("sel"));
+  document.getElementById("otro-box").style.display = "none";
+  tipoSel = null; fotosNuevas = [];
+  renderFotosGrid();
+  document.getElementById("form-wrap").style.display = "block";
+  document.getElementById("form-ok").style.display = "none";
+}
+
+// ── Mis avisos ────────────────────────────────────────────────
+async function cargarMis() {
+  const l = document.getElementById("mis-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    let data = await r.json();
+    // Gobernanta ve todas desde la API; aquí filtramos solo lo que ella misma reportó
+    if (usuario.rol === "gobernanta") {
+      data = data.filter(i => i.reporter && i.reporter.id === usuario.id);
+    }
+    cache = data;
+    if (usuario.rol === "limpiadora") {
+      // "Mis tareas" = solo lo asignado a ella y todavía activo (lo resuelto pasa a Histórico)
+      const activas = data.filter(i => i.asignado && i.asignado.id === usuario.id && i.estado !== "resuelto");
+      l.innerHTML = activas.length ? activas.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">No tienes tareas pendientes ahora mismo.</div>';
+    } else {
+      l.innerHTML = data.length ? data.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">No has enviado ningún aviso todavía.</div>';
+    }
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+async function cargarHistorico() {
+  const l = document.getElementById("historico-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    const data = await r.json();
+    cache = data;
+    const finalizadas = data.filter(i => i.asignado && i.asignado.id === usuario.id && i.estado === "resuelto");
+    const reportes = data.filter(i => i.reporter && i.reporter.id === usuario.id);
+    let html = "";
+    if (finalizadas.length) {
+      html += `<span class="section-label">Trabajos finalizados</span>` + finalizadas.map(i => cardHtml(i, true, false)).join("");
+    }
+    if (reportes.length) {
+      html += `<span class="section-label" style="margin-top:${finalizadas.length ? '18px' : '0'}">Tus reportes a mantenimiento</span>` + reportes.map(i => cardHtml(i, true, false)).join("");
+    }
+    l.innerHTML = html || '<div class="empty">Todavía no hay nada en tu histórico.</div>';
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+// ── Todas las incidencias para gobernanta (solo lectura, su propia pestaña) ──
+let filtroGobSel = "todos";
+
+function buildFiltrosGob() {
+  const opts = [["todos","Todos"],["recibido","Recibidos"],["asignado","Asignados"],["en_curso","En curso"],["resuelto","Resueltos"]];
+  document.getElementById("filtros-gob").innerHTML = opts.map(([k,l]) => `<span class="chip ${k===filtroGobSel?'sel':''}" onclick="setFiltroGob('${k}')">${l}</span>`).join("");
+}
+function setFiltroGob(f) { filtroGobSel = f; buildFiltrosGob(); renderTodasGob(); }
+
+async function cargarTodasGob() {
+  const l = document.getElementById("todas-gob-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    cache = await r.json();
+    renderTodasGob();
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+function renderTodasGob() {
+  const l = document.getElementById("todas-gob-lista");
+  let incs = cache;
+  if (filtroGobSel !== "todos") incs = incs.filter(i => i.estado === filtroGobSel);
+  l.innerHTML = incs.length ? incs.map(i => cardHtml(i, true, false)).join("") : '<div class="empty">Sin incidencias en esta categoría.</div>';
+}
+
+let limpiadorasCache = [];
+
+function verDetalleLimpiadora(id) {
+  fotoComentarioSel = null;
+  const inc = cache.find(i => i.id === id);
+  if (!inc) return;
+  const tipo = inc.tipo_solicitud === "limpieza" ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza") : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
+  const fotos = (inc.fotos||[]).map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
+  const comentarios = inc.comentarios_internos || [];
+  const esPropia = inc.reporter && inc.reporter.id === usuario.id;
+  const autorApertura = esPropia ? "Tu aviso inicial" : (inc.nombre_huesped ? `Huésped: ${inc.nombre_huesped}` : (inc.reporter?.nombre || "Reportante"));
+  const gestiona = puedeGestionarJS(inc);
+  const puedeComentar = puedeComentarJS(inc);
+  const puedeAsignar = usuario.rol === "gobernanta" && inc.tipo_solicitud === "limpieza";
+  const estados = ["recibido","en_curso","resuelto"];
+  estadoPendienteGob = inc.estado;
+
+  document.getElementById("sheet-detalle-body").innerHTML = `
+    <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button type="button" class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
+    <p style="font-size:11px;color:var(--slate);margin-bottom:10px">${inc.codigo||""}${!esPropia && inc.reporter ? ' · ' + inc.reporter.nombre : ''}</p>
+    ${inc.asignado ? `<p style="font-size:12px;color:var(--slate);margin-bottom:14px">Asignada a <b>${inc.asignado.nombre}</b></p>` : ""}
+    ${gestiona ? `
+      <span class="section-label">Estado actual: ${ESTADOS[inc.estado]||inc.estado}</span>
+      <div class="estado-grid" id="estado-grid-gob" style="margin-bottom:14px">
+        ${estados.map(e=>`<button type="button" class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoGob(this)">${ESTADOS[e]}</button>`).join("")}
+      </div>
+    ` : `
+      <span class="section-label">Estado</span>
+      <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
+    `}
+    ${puedeAsignar ? `
+      <span class="section-label">Asignar a limpiadora</span>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <select id="sel-limpiadora-${id}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--r);font-size:13px"><option value="">Cargando...</option></select>
+        <button type="button" class="btn btn-secondary btn-sm" style="width:auto;padding:0 14px;margin-top:0" onclick="asignarLimpiadora(${id})">Asignar</button>
+      </div>
+    ` : ""}
+    ${inc.origen === "huesped" && gestiona ? `
+      <span class="section-label">Nota para el cliente <span style="text-transform:none;font-weight:400">(el huésped la ve traducida a su idioma)</span></span>
+      <div class="field" style="margin-bottom:14px">
+        <textarea id="nota-cliente-inp" rows="2" placeholder="Ej: Ya hemos repuesto las toallas, gracias por avisarnos.">${inc.nota_cliente || ""}</textarea>
+      </div>
+    ` : ""}
+    <span class="section-label">Conversación</span>
+    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.origen === "huesped" ? inc.descripcion : inc.notas, autorApertura, inc.id, inc.idioma)}</div>
+    ${puedeComentar ? `
+      <div class="field" style="margin-bottom:14px">
+        <textarea id="nuevo-comentario-gob" rows="2" placeholder="Escribe un mensaje..."></textarea>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="file" id="foto-comentario-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoComentarioSel(event)">
+          <button type="button" onclick="document.getElementById('foto-comentario-inp').click()" style="background:none;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:11px;cursor:pointer;color:var(--slate)">📎 Adjuntar foto</button>
+          <span id="foto-comentario-nombre" style="font-size:11px;color:var(--slate)"></span>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="enviarComentarioGob(${id})" style="margin-top:6px">Enviar mensaje</button>
+      </div>
+    ` : ""}
+    ${gestiona ? `<button type="button" class="btn btn-primary" onclick="guardarEstadoGob(${id})" style="margin-bottom:18px">Guardar cambios</button>` : ""}
+    ${fotos ? `<span class="section-label">Fotos</span><div class="foto-grid">${fotos}</div>` : ""}
+  `;
+  openSheet("sheet-detalle");
+  if (puedeAsignar) cargarLimpiadorasEnSelect(id, inc.asignado?.id);
+}
+
+function selEstadoGob(btn) {
+  document.querySelectorAll("#estado-grid-gob .estado-btn").forEach(b => { b.className = "estado-btn"; });
+  btn.classList.add("sel-" + btn.dataset.estado);
+  estadoPendienteGob = btn.dataset.estado;
+}
+
+async function guardarEstadoGob(id) {
+  const texto = document.getElementById("nuevo-comentario-gob")?.value.trim() || "";
+  const notaClienteEl = document.getElementById("nota-cliente-inp");
+  const notaCliente = notaClienteEl ? notaClienteEl.value.trim() : null;
+
+  const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({estado: estadoPendienteGob, nota_cliente: notaCliente})
+  });
+  if (!r.ok) return;
+  let upd = await r.json();
+
+  const upd2 = await enviarComentarioConFoto(id, texto);
+  if (upd2) upd = upd2;
+
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  closeSheet("sheet-detalle");
+  if (document.getElementById("tab-todas-gob").style.display !== "none") renderTodasGob();
+  if (document.getElementById("tab-mis").style.display !== "none") cargarMis();
+}
+
+async function cargarLimpiadorasEnSelect(id, asignadoActualId) {
+  const sel = document.getElementById(`sel-limpiadora-${id}`);
+  if (!sel) return;
+  try {
+    if (!limpiadorasCache.length) {
+      const r = await fetch(`${API}/api/admin/limpiadoras`, {headers:{"Authorization":`Bearer ${token}`}});
+      if (r.ok) limpiadorasCache = await r.json();
+    }
+    sel.innerHTML = '<option value="">Selecciona limpiadora...</option>' +
+      limpiadorasCache.map(l => `<option value="${l.id}" ${asignadoActualId===l.id?'selected':''}>${l.nombre}${l.planta?(' · '+l.planta):''}</option>`).join("");
+  } catch { sel.innerHTML = '<option value="">Error al cargar</option>'; }
+}
+
+async function asignarLimpiadora(id) {
+  const sel = document.getElementById(`sel-limpiadora-${id}`);
+  const usuarioId = sel && sel.value;
+  if (!usuarioId) return;
+  const r = await fetch(`${API}/api/incidencias/${id}/asignar`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({usuario_id: parseInt(usuarioId)})
+  });
+  if (!r.ok) return;
+  const upd = await r.json();
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  verDetalleLimpiadora(id);
+  renderTodasGob();
+}
+
+async function enviarComentarioGob(id) {
+  const texto = document.getElementById("nuevo-comentario-gob").value.trim();
+  if (!texto && !fotoComentarioSel) return;
+  const upd = await enviarComentarioConFoto(id, texto);
+  if (upd) {
+    const idx = cache.findIndex(i => i.id === id);
+    if (idx >= 0) cache[idx] = upd;
+    verDetalleLimpiadora(id);
+  }
+}
+
+// ── Todas (mantenimiento/admin/gobernanta-lectura) ─────────────
+let soloLecturaGobernanta = false;
+
+function buildFiltros() {
+  const opts = [["todos","Todos"],["recibido","Recibidos"],["asignado","Asignados"],["en_curso","En curso"],["esperando_material","Esperando"]];
+  document.getElementById("filtros").innerHTML = opts.map(([k,l]) => `<span class="chip ${k===filtroSel?'sel':''}" onclick="setFiltro('${k}')">${l}</span>`).join("");
+}
+function setFiltro(f) { filtroSel = f; buildFiltros(); renderTodas(); }
+
+async function cargarTodas(soloLectura) {
+  if (soloLectura !== undefined) soloLecturaGobernanta = soloLectura;
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    cache = await r.json();
+    if (usuario.rol === "admin") poblarFiltroUsuario();
+    renderTodas();
+  } catch {}
+}
+
+function poblarFiltroUsuario() {
+  const wrap = document.getElementById("filtro-usuario-wrap");
+  const sel = document.getElementById("filtro-usuario");
+  wrap.style.display = "block";
+  const reporters = {};
+  cache.forEach(i => { if (i.reporter) reporters[i.reporter.id] = i.reporter.nombre; });
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">Todos los usuarios</option>' +
+    Object.entries(reporters).map(([id,nombre]) => `<option value="${id}">${nombre}</option>`).join("");
+  sel.value = valorActual;
+}
+
+function renderTodas() {
+  const l = document.getElementById("todas-lista");
+  let incs = cache.filter(i => i.estado !== "resuelto");
+  if (filtroSel !== "todos") incs = incs.filter(i => i.estado === filtroSel);
+  const filtroUsuarioSel = usuario.rol === "admin" ? document.getElementById("filtro-usuario").value : "";
+  if (filtroUsuarioSel) incs = incs.filter(i => i.reporter && String(i.reporter.id) === filtroUsuarioSel);
+  l.innerHTML = incs.length ? incs.map(i => cardHtml(i, true, !soloLecturaGobernanta)).join("") : '<div class="empty">Sin incidencias en esta categoría.</div>';
+}
+
+async function cargarResueltas() {
+  const l = document.getElementById("resueltas-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/incidencias/`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    cache = await r.json();
+    const resueltas = cache.filter(i => i.estado === "resuelto");
+    l.innerHTML = resueltas.length ? resueltas.map(i => cardHtml(i, true, !soloLecturaGobernanta)).join("") : '<div class="empty">No hay incidencias resueltas todavía.</div>';
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+// ── Card ──────────────────────────────────────────────────────
+function puedeGestionarJS(inc) {
+  const rol = usuario.rol;
+  if (rol === "admin") return true;
+  if (rol === "mantenimiento") return inc.tipo_solicitud !== "limpieza";
+  if (rol === "gobernanta") return inc.tipo_solicitud === "limpieza";
+  if (rol === "limpiadora") return inc.asignado && inc.asignado.id === usuario.id;
+  return false;
+}
+
+function puedeComentarJS(inc) {
+  if (puedeGestionarJS(inc)) return true;
+  if (usuario.rol === "gobernanta" && inc.reporter && inc.reporter.id === usuario.id) return true;
+  return false;
+}
+
+function cardHtml(inc, withAction = false, mantView = false) {
+  const bc = {recibido:"var(--slate)",asignado:"#3D5A99",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
+  const esHuesped = inc.origen === "huesped";
+  const esLimpieza = inc.tipo_solicitud === "limpieza";
+  const tipo = esLimpieza
+    ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza")
+    : inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
+  const autor = esHuesped
+    ? (inc.nombre_huesped ? `Huésped: ${inc.nombre_huesped}` : "Huésped")
+    : (inc.reporter?.nombre || "");
+  const fecha = new Date(inc.creado_en);
+  const diff = Math.floor((Date.now()-fecha)/60000);
+  const ft = diff < 60 ? `hace ${diff}m` : diff < 1440 ? `hace ${Math.floor(diff/60)}h` : fecha.toLocaleDateString("es-ES");
+  const fotos = (inc.fotos||[]).map(f=>`<img src="${f.url}" onclick="openFotoViewer('${f.url}')" style="width:44px;height:44px;object-fit:cover;border-radius:3px;border:1px solid var(--border);cursor:pointer">`).join("");
+  const gestionable = mantView ? true : puedeGestionarJS(inc);
+  const btnLabel = gestionable ? "Gestionar" : "Ver detalle";
+  const btnFn = mantView ? `abrirDetalle(${inc.id})` : `verDetalleLimpiadora(${inc.id})`;
+  const btn = withAction ? `<button type="button" onclick="${btnFn}" style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--slate-bg);font-size:11px;font-weight:600;color:var(--ink);cursor:pointer">${btnLabel}</button>` : "";
+  const huespedBadge = esHuesped ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:2px;background:#EDE4F7;color:#6B3FA0;text-transform:uppercase">Huésped</span>` : "";
+  const asignadoTxt = inc.asignado ? `<div style="font-size:11px;color:var(--slate);margin-top:2px">→ ${inc.asignado.nombre}</div>` : "";
+  return `<div class="card" style="border-left:3px solid ${bc}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          <span class="card-room">Hab. ${inc.habitacion}</span>
+          ${huespedBadge}
+          <span class="badge badge-${inc.prioridad}">${inc.prioridad}</span>
+          <span class="badge badge-${inc.estado}">${ESTADOS[inc.estado]||inc.estado}</span>
+        </div>
+        <div class="card-type">${tipo}</div>
+      </div>
+      <span style="font-size:10px;color:var(--slate);white-space:nowrap">${inc.codigo||""}</span>
+    </div>
+    ${fotos ? `<div style="display:flex;gap:5px;margin-top:10px">${fotos}</div>` : ""}
+    <div class="card-meta">${autor}${inc.reporter?.planta ? " · " + inc.reporter.planta : ""} · ${ft}</div>
+    ${asignadoTxt}
+    ${btn}
+  </div>`;
+}
+
+// ── Detalle gestión (mantenimiento/admin) ───────────────────────
+let estadoPendiente = null;
+let estadoPendienteGob = null;
+let prioPendiente = null;
+
+async function abrirDetalle(id) {
+  fotoComentarioSel = null;
+  const inc = cache.find(i => i.id === id);
+  if (!inc) return;
+  estadoPendiente = inc.estado;
+  prioPendiente = inc.prioridad;
+  const esLimpieza = inc.tipo_solicitud === "limpieza";
+  const tipo = esLimpieza ? (TIPOS_LIMPIEZA[inc.tipo_limpieza] || "🧹 Solicitud de limpieza") : (inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo));
+  const fotos = inc.fotos||[];
+  const fotosHtml = fotos.map(f=>`<div class="foto-thumb"><img src="${f.url}" onclick="openFotoViewer('${f.url}')"></div>`).join("");
+  const addBtn = fotos.length < 3 ? `<div class="foto-add" onclick="triggerFotoMant(${id})" style="aspect-ratio:1;max-width:72px"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>Añadir</span></div>` : "";
+  const estados = esLimpieza ? ["recibido","en_curso","resuelto"] : ["recibido","en_curso","esperando_material","resuelto"];
+  const prios = ["urgente","normal","baja"];
+  const prioLabels = {urgente:"Urgente", normal:"Normal", baja:"Sin prisa"};
+  const puedeAsignar = usuario.rol === "admin" && esLimpieza;
+
+  document.getElementById("sheet-detalle-body").innerHTML = `
+    <div class="sheet-title">Hab. ${inc.habitacion} — ${tipo}<button type="button" class="sheet-close" onclick="closeSheet('sheet-detalle')">×</button></div>
+    <p style="font-size:11px;color:var(--slate);margin-bottom:10px">${inc.codigo||""} · ${inc.reporter?.nombre||inc.nombre_huesped||""} · ${ROL_LABELS[inc.reporter?.rol]||(inc.origen==="huesped"?"Huésped":"")}</p>
+    ${inc.asignado ? `<p style="font-size:12px;color:var(--slate);margin-bottom:14px">Asignada a <b>${inc.asignado.nombre}</b></p>` : ""}
+    ${puedeAsignar ? `
+      <span class="section-label">Asignar a limpiadora</span>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <select id="sel-limpiadora-${id}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--r);font-size:13px"><option value="">Cargando...</option></select>
+        <button type="button" class="btn btn-secondary btn-sm" style="width:auto;padding:0 14px;margin-top:0" onclick="asignarLimpiadora(${id})">Asignar</button>
+      </div>
+    ` : ""}
+    <span class="section-label">Prioridad</span>
+    <div class="prio-row" id="prio-grid-detalle" style="margin-bottom:14px">
+      ${prios.map(p=>`<button type="button" class="prio-btn prio-${p} ${inc.prioridad===p?'sel-'+p:''}" data-prio="${p}" onclick="selPrioDetalle(this)">${prioLabels[p]}</button>`).join("")}
+    </div>
+    <span class="section-label">Estado actual: ${ESTADOS[inc.estado]||inc.estado}</span>
+    <div class="estado-grid" id="estado-grid-detalle" style="margin-bottom:14px">
+      ${estados.map(e=>`<button type="button" class="estado-btn ${inc.estado===e?'sel-'+e:''}" data-estado="${e}" onclick="selEstadoDetalle(this)">${ESTADOS[e]}</button>`).join("")}
+    </div>
+    ${inc.origen === "huesped" ? `
+      <span class="section-label">Nota para el cliente <span style="text-transform:none;font-weight:400">(el huésped la ve traducida a su idioma)</span></span>
+      <div class="field" style="margin-bottom:14px">
+        <textarea id="nota-cliente-inp" rows="2" placeholder="Ej: Ya hemos arreglado el grifo, gracias por avisarnos.">${inc.nota_cliente || ""}</textarea>
+      </div>
+    ` : ""}
+    <span class="section-label">Conversación</span>
+    <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.origen === "huesped" ? inc.descripcion : inc.notas, inc.reporter?.nombre || inc.nombre_huesped, inc.id, inc.idioma)}
+    </div>
+    <div class="field" style="margin-bottom:14px">
+      <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <input type="file" id="foto-comentario-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoComentarioSel(event)">
+        <button type="button" onclick="document.getElementById('foto-comentario-inp').click()" style="background:none;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:11px;cursor:pointer;color:var(--slate)">📎 Adjuntar foto</button>
+        <span id="foto-comentario-nombre" style="font-size:11px;color:var(--slate)"></span>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="guardarEstado(${id})" style="margin-bottom:18px">Guardar cambios</button>
+    <span class="section-label">Fotos</span>
+    <div class="foto-grid">${fotosHtml}${addBtn}</div>
+    <input type="file" id="foto-mant-inp" accept="image/*" capture="environment" style="display:none" onchange="onFotoMant(event,${id})">
+  `;
+  openSheet("sheet-detalle");
+  if (puedeAsignar) cargarLimpiadorasEnSelect(id, inc.asignado?.id);
+}
+
+function comentariosInternosHtml(comentarios, notaApertura, autorApertura, incId, idiomaOrigen) {
+  let html = "";
+  if (notaApertura) {
+    const translateId = `transl-${incId || 'nota'}`;
+    const origen = idiomaOrigen || "en";
+    html += `
+      <div style="background:var(--emer-bg);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--emerald)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:11px;font-weight:700;color:var(--emerald)">${autorApertura||'Reportante'} · Aviso inicial</span>
+          <button onclick="traducirTexto('${notaApertura.replace(/'/g,"\\'").replace(/\n/g,' ')}','${translateId}','${origen}')" style="background:none;border:1px solid var(--emerald);border-radius:2px;color:var(--emerald);font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer">Traducir</button>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.4">${notaApertura}</div>
+        <div id="${translateId}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--emerald)33;font-size:12px;color:var(--emerald);font-style:italic"></div>
+      </div>
+    `;
+  }
+  if (!comentarios.length && !notaApertura) {
+    return '<p style="font-size:12px;color:var(--slate)">Sin mensajes todavía.</p>';
+  }
+  html += comentarios.map(c => {
+    const esAdmin = c.autor_rol === "admin";
+    const esGobernanta = c.autor_rol === "gobernanta";
+    const bg = esAdmin ? 'var(--gold-bg)' : esGobernanta ? '#EDE4F7' : 'var(--slate-bg)';
+    const fg = esAdmin ? 'var(--gold)' : esGobernanta ? '#6B3FA0' : 'var(--ink)';
+    const sufijo = esAdmin ? ' · Admin' : esGobernanta ? ' · Gobernanta' : '';
+    const fecha = new Date(c.fecha);
+    const horaStr = fecha.toLocaleDateString("es-ES", {day:"2-digit",month:"2-digit"}) + " " + fecha.toLocaleTimeString("es-ES", {hour:"2-digit",minute:"2-digit"});
+    return `
+      <div style="background:${bg};border-radius:var(--r);padding:8px 10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:3px">
+          <span style="font-size:11px;font-weight:700;color:${fg}">${c.autor||''}${sufijo}</span>
+          <span style="font-size:10px;color:var(--slate)">${horaStr}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.4">${c.texto}</div>
+      </div>
+    `;
+  }).join("");
+  return html;
+}
+
+let fotoComentarioSel = null;
+
+function onFotoComentarioSel(e) {
+  fotoComentarioSel = e.target.files[0] || null;
+  const nombreEl = document.getElementById("foto-comentario-nombre");
+  if (nombreEl) nombreEl.textContent = fotoComentarioSel ? "📷 " + fotoComentarioSel.name : "";
+}
+
+async function subirFotoStaff(id, file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(`${API}/api/fotos/${id}`, {
+    method: "POST",
+    headers: {"Authorization": `Bearer ${token}`},
+    body: fd,
+  });
+  return r.ok;
+}
+
+async function enviarComentario(id, texto) {
+  const r = await fetch(`${API}/api/incidencias/${id}/comentarios`, {
+    method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({texto})
+  });
+  if (r.ok) return await r.json();
+  return null;
+}
+
+// Sube la foto adjunta (si hay) y envía el texto (si hay). Devuelve la incidencia actualizada.
+async function enviarComentarioConFoto(id, texto) {
+  let subioFoto = false;
+  if (fotoComentarioSel) {
+    subioFoto = await subirFotoStaff(id, fotoComentarioSel);
+    fotoComentarioSel = null;
+    const nombreEl = document.getElementById("foto-comentario-nombre");
+    if (nombreEl) nombreEl.textContent = "";
+  }
+  if (texto) {
+    return await enviarComentario(id, texto);
+  }
+  if (subioFoto) {
+    const r = await fetch(`${API}/api/incidencias/${id}`, {headers:{"Authorization":`Bearer ${token}`}});
+    return r.ok ? await r.json() : null;
+  }
+  return null;
+}
+
+function selPrioDetalle(btn) {
+  document.querySelectorAll("#prio-grid-detalle .prio-btn").forEach(b => { b.className = "prio-btn prio-" + b.dataset.prio; });
+  btn.classList.add("sel-" + btn.dataset.prio);
+  prioPendiente = btn.dataset.prio;
+}
+function selEstadoDetalle(btn) {
+  document.querySelectorAll("#estado-grid-detalle .estado-btn").forEach(b => { b.className = "estado-btn"; });
+  btn.classList.add("sel-" + btn.dataset.estado);
+  estadoPendiente = btn.dataset.estado;
+}
+
+async function guardarEstado(id) {
+  const texto = document.getElementById("nuevo-comentario").value.trim();
+  const notaClienteEl = document.getElementById("nota-cliente-inp");
+  const notaCliente = notaClienteEl ? notaClienteEl.value.trim() : null;
+
+  const r = await fetch(`${API}/api/incidencias/${id}/estado`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({estado: estadoPendiente, prioridad: prioPendiente, nota_cliente: notaCliente})
+  });
+  if (!r.ok) return;
+  let upd = await r.json();
+
+  const upd2 = await enviarComentarioConFoto(id, texto);
+  if (upd2) upd = upd2;
+
+  const idx = cache.findIndex(i => i.id === id);
+  if (idx >= 0) cache[idx] = upd;
+  closeSheet("sheet-detalle");
+  renderTodas();
+}
+
+function triggerFotoMant() { document.getElementById("foto-mant-inp").click(); }
+async function onFotoMant(e, id) {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append("file", f);
+  const r = await fetch(`${API}/api/fotos/${id}`, {method:"POST",headers:{"Authorization":`Bearer ${token}`},body:fd});
+  if (r.ok) {
+    const foto = await r.json();
+    const inc = cache.find(i => i.id === id);
+    if (inc) { inc.fotos = inc.fotos||[]; inc.fotos.push(foto); }
+    abrirDetalle(id);
+  }
+  e.target.value = "";
+}
+
+// ── Cambio contraseña propia ───────────────────────────────────
+async function cambiarPw() {
+  const actual = document.getElementById("pw-actual").value;
+  const nueva = document.getElementById("pw-nueva").value;
+  const conf = document.getElementById("pw-conf").value;
+  const err = document.getElementById("pw-err");
+  const ok = document.getElementById("pw-ok");
+  err.style.display = "none"; ok.style.display = "none";
+  if (!actual||!nueva||!conf) { err.textContent = "Rellena todos los campos."; err.style.display="block"; return; }
+  if (nueva !== conf) { err.textContent = "Las contraseñas no coinciden."; err.style.display="block"; return; }
+  if (nueva.length < 6) { err.textContent = "Mínimo 6 caracteres."; err.style.display="block"; return; }
+  try {
+    const r = await fetch(`${API}/api/perfil/cambiar-password`, {
+      method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body: JSON.stringify({password_actual:actual, password_nuevo:nueva})
+    });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.detail||"Error"; err.style.display="block"; return; }
+    ok.style.display = "block";
+    document.getElementById("pw-actual").value = "";
+    document.getElementById("pw-nueva").value = "";
+    document.getElementById("pw-conf").value = "";
+  } catch { err.textContent = "Error de conexión."; err.style.display="block"; }
+}
+
+// ── Usuarios (admin) ────────────────────────────────────────────
+let usuarioParaResetId = null;
+
+async function cargarUsuarios() {
+  cargarUsoAlmacenamiento();
+  const l = document.getElementById("usuarios-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/admin/usuarios`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    if (r.status === 403) { l.innerHTML = '<div class="empty">Sin permisos.</div>'; return; }
+    const data = await r.json();
+    if (!data.length) { l.innerHTML = '<div class="empty">Sin usuarios todavía.</div>'; return; }
+    l.innerHTML = data.map(u => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;${u.activo?'':'opacity:0.5'}">
+        <div style="flex:1">
+          <div style="font-weight:600;color:var(--ink);font-size:13px">${u.nombre}</div>
+          <div style="font-size:11px;color:var(--slate);margin-top:2px">${u.username} · ${ROL_LABELS[u.rol]||u.rol}${u.planta ? ' · '+u.planta : ''}</div>
+        </div>
+        <button type="button" onclick="abrirResetUsuario(${u.id}, '${u.nombre.replace(/'/g,"\\'")}')" style="background:none;border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:11px;color:var(--slate);cursor:pointer">Contraseña</button>
+        <label class="toggle">
+          <input type="checkbox" ${u.activo?'checked':''} onchange="toggleUsuario(${u.id}, ${u.activo})">
+          <span class="track" style="background:${u.activo?'var(--emerald)':'#ccc'}" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))"></span>
+          <span class="knob" style="left:${u.activo?'18px':'2px'}"></span>
+        </label>
+      </div>
+    `).join("");
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+async function toggleUsuario(uid, activoActual) {
+  const r = await fetch(`${API}/api/admin/usuarios/${uid}`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({activo: !activoActual})
+  });
+  if (r.ok) cargarUsuarios();
+}
+
+function abrirResetUsuario(uid, nombre) {
+  usuarioParaResetId = uid;
+  document.getElementById("reset-usuario-titulo").textContent = "Contraseña de " + nombre;
+  document.getElementById("ru-nueva").value = "";
+  document.getElementById("ru-conf").value = "";
+  document.getElementById("ru-err").style.display = "none";
+  openSheet("sheet-reset-usuario");
+}
+
+async function resetUsuarioPw() {
+  const nueva = document.getElementById("ru-nueva").value;
+  const conf = document.getElementById("ru-conf").value;
+  const err = document.getElementById("ru-err");
+  err.style.display = "none";
+  if (!nueva || nueva !== conf) { err.textContent = "Las contraseñas no coinciden."; err.style.display = "block"; return; }
+  if (nueva.length < 6) { err.textContent = "Mínimo 6 caracteres."; err.style.display = "block"; return; }
+  const r = await fetch(`${API}/api/admin/usuarios/${usuarioParaResetId}`, {
+    method:"PATCH", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({password: nueva})
+  });
+  if (r.ok) { closeSheet("sheet-reset-usuario"); }
+  else { const d = await r.json(); err.textContent = d.detail || "Error"; err.style.display = "block"; }
+}
+
+async function cargarUsoAlmacenamiento() {
+  const banner = document.getElementById("storage-banner");
+  try {
+    const r = await fetch(`${API}/api/fotos/sistema/uso-almacenamiento`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (!r.ok) { banner.style.display = "none"; return; }
+    const d = await r.json();
+    const pct = d.porcentaje_usado;
+    const color = pct >= 80 ? "var(--crimson)" : pct >= 50 ? "var(--gold)" : "var(--emerald)";
+    const bg = pct >= 80 ? "var(--crim-bg)" : pct >= 50 ? "var(--gold-bg)" : "var(--emer-bg)";
+    banner.style.display = "block";
+    banner.innerHTML = `
+      <div style="background:${bg};border:1px solid ${color}33;border-radius:var(--r);padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:700;color:${color}">Almacenamiento de fotos</span>
+          <span style="font-size:12px;font-weight:700;color:${color}">${pct}%</span>
+        </div>
+        <div style="background:#0001;border-radius:4px;height:6px;overflow:hidden">
+          <div style="width:${Math.min(pct,100)}%;height:100%;background:${color}"></div>
+        </div>
+        <div style="font-size:11px;color:var(--slate);margin-top:6px">
+          ${(d.almacenamiento_usado_mb/1024).toFixed(2)} GB de ${(d.almacenamiento_limite_mb/1024).toFixed(0)} GB usados
+          ${d.alerta ? ' · Considera ampliar el plan o liberar espacio' : ''}
+        </div>
+      </div>
+    `;
+  } catch { banner.style.display = "none"; }
+}
+
+async function crearUsuario() {
+  const nombre = document.getElementById("nu-nombre").value.trim();
+  const username = document.getElementById("nu-username").value.trim();
+  const password = document.getElementById("nu-password").value;
+  const rol = document.getElementById("nu-rol").value;
+  const planta = document.getElementById("nu-planta").value.trim();
+  const err = document.getElementById("nu-err");
+  err.style.display = "none";
+  if (!nombre || !username || !password) { err.textContent = "Nombre, usuario y contraseña son obligatorios."; err.style.display = "block"; return; }
+  if (password.length < 6) { err.textContent = "La contraseña debe tener al menos 6 caracteres."; err.style.display = "block"; return; }
+  const r = await fetch(`${API}/api/admin/usuarios`, {
+    method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({ nombre, username, password, rol, planta: planta || null })
+  });
+  if (r.ok) {
+    closeSheet("sheet-nuevo-usuario");
+    ["nu-nombre","nu-username","nu-password","nu-planta"].forEach(id => document.getElementById(id).value = "");
+    cargarUsuarios();
+  } else {
+    const d = await r.json();
+    err.textContent = d.detail || "Error al crear usuario"; err.style.display = "block";
+  }
+}
+
+// ── Habitaciones (admin) ─────────────────────────────────────────
+async function cargarHabitaciones() {
+  const l = document.getElementById("habitaciones-lista");
+  l.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const r = await fetch(`${API}/api/admin/habitaciones`, {headers:{"Authorization":`Bearer ${token}`}});
+    if (r.status === 401) { logout(); return; }
+    habitacionesCache = await r.json();
+    if (!habitacionesCache.length) { l.innerHTML = '<div class="empty">Sin habitaciones todavía. Añade la primera.</div>'; return; }
+    l.innerHTML = habitacionesCache.map(h => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px">
+        <div style="font-weight:700;color:var(--ink);font-size:14px;flex:1">Hab. ${h.numero}</div>
+        ${h.token ? `<button onclick="verQR('${h.token}','${h.numero}')" style="background:none;border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:11px;font-weight:600;color:var(--slate);cursor:pointer">QR</button>` : ""}
+        <span onclick="eliminarHabitacion(${h.id})" style="cursor:pointer;color:var(--crimson);font-weight:700;font-size:18px;line-height:1">×</span>
+      </div>
+    `).join("");
+  } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+function verQR(tok, numero) {
+  const url = `${API}/h/${tok}`;
+  const html = `
+    <div class="sheet-title">QR Hab. ${numero}<button class="sheet-close" onclick="closeSheet('sheet-qr')">×</button></div>
+    <div style="text-align:center;padding:20px 0">
+      <div id="qr-canvas" style="display:inline-block;padding:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r2)"></div>
+      <p style="font-size:11px;color:var(--slate);margin-top:12px;word-break:break-all">${url}</p>
+      <button onclick="descargarQR('${numero}')" class="btn btn-primary btn-sm" style="margin-top:16px;width:auto;padding:8px 20px">Descargar QR</button>
+    </div>
+  `;
+  document.getElementById("sheet-qr-body").innerHTML = html;
+  openSheet("sheet-qr");
+  // Generar QR con librería externa
+  const script = document.getElementById("qrcode-script");
+  const render = () => {
+    new QRCode(document.getElementById("qr-canvas"), {
+      text: url, width: 200, height: 200,
+      colorDark: "#222222", colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  };
+  if (!script) {
+    const s = document.createElement("script");
+    s.id = "qrcode-script";
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    s.onload = render;
+    document.head.appendChild(s);
+  } else {
+    render();
+  }
+}
+
+function descargarQR(numero) {
+  const canvas = document.querySelector("#qr-canvas canvas");
+  if (!canvas) return;
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = `QR_hab_${numero}.png`;
+  a.click();
+}
+
+async function eliminarHabitacion(hid) {
+  const r = await fetch(`${API}/api/admin/habitaciones/${hid}`, {method:"DELETE", headers:{"Authorization":`Bearer ${token}`}});
+  if (r.ok) cargarHabitaciones();
+}
+
+async function crearHabitaciones() {
+  const raw = document.getElementById("nh-numeros").value.trim();
+  const err = document.getElementById("nh-err");
+  const ok = document.getElementById("nh-ok");
+  err.style.display = "none"; ok.style.display = "none";
+  if (!raw) { err.textContent = "Introduce al menos un número."; err.style.display = "block"; return; }
+  const numeros = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  const r = await fetch(`${API}/api/admin/habitaciones/bulk`, {
+    method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({numeros})
+  });
+  if (r.ok) {
+    const d = await r.json();
+    ok.textContent = `${d.total} habitación(es) añadida(s).`;
+    ok.style.display = "block";
+    document.getElementById("nh-numeros").value = "";
+    cargarHabitaciones();
+    setTimeout(() => closeSheet("sheet-nueva-habitacion"), 900);
+  } else {
+    const d = await r.json();
+    err.textContent = d.detail || "Error"; err.style.display = "block";
+  }
+}
+
+// ── Traducción con MyMemory (gratuito, sin API key) ───────────
+async function traducirTexto(texto, elementId, idiomaOrigen) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.style.display = "block";
+  el.textContent = "Traduciendo...";
+  try {
+    const origen = idiomaOrigen || "en";
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=${origen}|es`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const traduccion = d.responseData?.translatedText;
+    if (traduccion && traduccion !== texto) {
+      el.textContent = "🇪🇸 " + traduccion;
+    } else {
+      el.textContent = "No se pudo traducir.";
+    }
+  } catch {
+    el.textContent = "Error de conexión al traducir.";
+  }
+}
+
+// ── Sheets / Overlays ─────────────────────────────────────────
+function openSheet(id) {
+  document.getElementById(id).classList.add("open");
+  if (id === "sheet-perfil") actualizarEstadoNotif();
+}
+function closeSheet(id) { document.getElementById(id).classList.remove("open"); }
+function closeOverlayOut(e, id) { if (e.target.id === id) closeSheet(id); }
+
+// ── Foto viewer ───────────────────────────────────────────────
+function openFotoViewer(url) { document.getElementById("foto-viewer-img").src = url; document.getElementById("foto-viewer").classList.add("open"); }
+function closeFotoViewer() { document.getElementById("foto-viewer").classList.remove("open"); }
+
+// ── Notificaciones push (Firebase Cloud Messaging) ──────────────
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC8RXNwBkGK4BaJVRCDa8ezQLn00E1JUzU",
+  authDomain: "hoteldelpintor.firebaseapp.com",
+  projectId: "hoteldelpintor",
+  storageBucket: "hoteldelpintor.firebasestorage.app",
+  messagingSenderId: "587720154488",
+  appId: "1:587720154488:web:f5f3a45eeffd41cab6fc8d"
+};
+const VAPID_KEY = "BI6VDuEH4rWXOHFSdGIfAAtJSBgyAUOs8nhL4sejb4h_khCdCrvSeNiY9hW5FcznQNJKztxB0ldcbJ9Gug76shY";
+
+let fcmApp = null, fcmMessaging = null;
+let notifToken = localStorage.getItem("hp_fcm_token") || null;
+
+function initFirebaseMessaging() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+  try {
+    if (!fcmMessaging) {
+      fcmApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+      fcmMessaging = firebase.messaging(fcmApp);
+      // Mensajes en primer plano (app abierta)
+      fcmMessaging.onMessage((payload) => {
+        const title = payload.notification?.title || "Hotel del Pintor";
+        const body = payload.notification?.body || "";
+        if (Notification.permission === "granted") {
+          new Notification(title, { body, icon: "/icon-192.png" });
+        }
+      });
+    }
+  } catch (e) { console.warn("Firebase messaging no disponible:", e); }
+}
+
+async function actualizarEstadoNotif() {
+  const statusEl = document.getElementById("notif-status");
+  const btnEl = document.getElementById("notif-btn");
+  if (!("Notification" in window)) {
+    statusEl.textContent = "No soportado en este navegador";
+    btnEl.style.display = "none";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    statusEl.textContent = "Bloqueadas — actívalas en ajustes del navegador";
+    btnEl.style.display = "none";
+  } else if (Notification.permission === "granted" && notifToken) {
+    statusEl.textContent = "Activadas en este dispositivo";
+    btnEl.textContent = "Desactivar";
+  } else {
+    statusEl.textContent = "Desactivadas";
+    btnEl.textContent = "Activar";
+    btnEl.style.display = "inline-block";
+  }
+}
+
+async function toggleNotificaciones() {
+  const btnEl = document.getElementById("notif-btn");
+  const statusEl = document.getElementById("notif-status");
+
+  if (Notification.permission === "granted" && notifToken) {
+    // Desactivar: borrar token del backend y local
+    try {
+      await fetch(`${API}/api/notificaciones/registrar-token`, {
+        method: "DELETE",
+        headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+        body: JSON.stringify({token: notifToken})
+      });
+    } catch {}
+    localStorage.removeItem("hp_fcm_token");
+    notifToken = null;
+    actualizarEstadoNotif();
+    return;
+  }
+
+  btnEl.disabled = true; btnEl.textContent = "Activando...";
+  try {
+    initFirebaseMessaging();
+    const permiso = await Notification.requestPermission();
+    if (permiso !== "granted") {
+      statusEl.textContent = "Permiso denegado";
+      btnEl.disabled = false; btnEl.textContent = "Activar";
+      return;
+    }
+    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const fcmToken = await fcmMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    if (!fcmToken) throw new Error("No se obtuvo token");
+
+    await fetch(`${API}/api/notificaciones/registrar-token`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+      body: JSON.stringify({token: fcmToken})
+    });
+
+    localStorage.setItem("hp_fcm_token", fcmToken);
+    notifToken = fcmToken;
+    statusEl.textContent = "Activadas en este dispositivo";
+    btnEl.textContent = "Desactivar";
+  } catch (e) {
+    statusEl.textContent = "Error: " + (e.message || "inténtalo de nuevo");
+    console.error(e);
+  } finally {
+    btnEl.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
