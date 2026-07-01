@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models.models import (
     Incidencia, CambioEstado, Habitacion, FotoIncidencia,
-    EstadoEnum, TipoEnum, PrioridadEnum, OrigenEnum, TipoSolicitudEnum
+    EstadoEnum, TipoEnum, PrioridadEnum, OrigenEnum, TipoSolicitudEnum, TipoLimpiezaEnum
 )
 from app.websocket_manager import manager
 from app.routers.incidencias import notificar_relevantes
@@ -15,6 +15,15 @@ import cloudinary.uploader
 import os
 
 router = APIRouter(prefix="/h", tags=["huesped"])
+
+TIPO_LIMPIEZA_LABELS = {
+    "toallas": "Toallas",
+    "sabanas": "Cambio de ropa de cama",
+    "amenities": "Amenities (jabón, champú, etc.)",
+    "limpieza_general": "Limpieza general de la habitación",
+    "otro": "Otra necesidad de limpieza",
+    None: "Solicitud de limpieza",
+}
 
 cloudinary.config(
     cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", "ddamj384r"),
@@ -26,6 +35,7 @@ cloudinary.config(
 class IncidenciaHuespedCreate(BaseModel):
     tipo_solicitud: TipoSolicitudEnum          # mantenimiento | limpieza
     tipo: Optional[TipoEnum] = None            # solo si mantenimiento
+    tipo_limpieza: Optional[TipoLimpiezaEnum] = None  # solo si limpieza
     descripcion: Optional[str] = None
     nombre_huesped: Optional[str] = None
     idioma: Optional[str] = "es"
@@ -62,18 +72,21 @@ async def crear_incidencia_huesped(
 ):
     hab = _habitacion_de_token(db, token)
 
-    # Para solicitudes de limpieza no hace falta tipo de mantenimiento
-    tipo = data.tipo if data.tipo else TipoEnum.otro
+    es_limpieza = data.tipo_solicitud == TipoSolicitudEnum.limpieza
+    tipo = None if es_limpieza else (data.tipo if data.tipo else TipoEnum.otro)
     descripcion = data.descripcion
 
-    # Si es limpieza sin descripción, ponemos una por defecto
-    if data.tipo_solicitud == TipoSolicitudEnum.limpieza and not descripcion:
-        descripcion = "Solicitud de limpieza"
+    # Si es limpieza sin descripción, usamos la etiqueta del tipo elegido
+    if es_limpieza and not descripcion:
+        descripcion = TIPO_LIMPIEZA_LABELS.get(
+            data.tipo_limpieza.value if data.tipo_limpieza else None, "Solicitud de limpieza"
+        )
 
     inc = Incidencia(
         codigo=gen_codigo(db),
         habitacion=hab.numero,
         tipo=tipo,
+        tipo_limpieza=data.tipo_limpieza if es_limpieza else None,
         descripcion=descripcion,
         prioridad=PrioridadEnum.normal,
         estado=EstadoEnum.recibido,
