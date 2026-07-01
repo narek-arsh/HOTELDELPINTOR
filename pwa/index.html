@@ -391,6 +391,11 @@ body { font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", sa
   </div>
 </div>
 
+<!-- ══ SHEET QR ═══════════════════════════════════════════════ -->
+<div id="sheet-qr" class="overlay" onclick="closeOverlayOut(event,'sheet-qr')">
+  <div class="sheet" id="sheet-qr-body"></div>
+</div>
+
 <!-- ══ FOTO VIEWER ══════════════════════════════════════════ -->
 <div id="foto-viewer" class="foto-viewer" onclick="closeFotoViewer()">
   <button class="foto-viewer-close">×</button>
@@ -640,7 +645,7 @@ function verDetalleLimpiadora(id) {
     <span class="section-label">Estado</span>
     <div style="margin-bottom:16px"><span class="badge badge-${inc.estado}" style="font-size:11px;padding:5px 10px">${ESTADOS[inc.estado]||inc.estado}</span></div>
     <span class="section-label">Conversación</span>
-    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.notas, autorApertura)}</div>
+    <div style="margin-bottom:10px">${comentariosInternosHtml(comentarios, inc.notas, autorApertura, inc.id)}</div>
     ${puedeEscribir ? `
       <div class="field" style="margin-bottom:14px">
         <textarea id="nuevo-comentario-gob" rows="2" placeholder="Escribe un mensaje..."></textarea>
@@ -719,8 +724,14 @@ async function cargarResueltas() {
 // ── Card ──────────────────────────────────────────────────────
 function cardHtml(inc, withAction = false, mantView = false) {
   const bc = {recibido:"var(--slate)",en_curso:"var(--gold)",esperando_material:"#4A5A72",resuelto:"var(--emerald)"}[inc.estado]||"var(--slate)";
-  const tipo = inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
-  const rep = inc.reporter || {};
+  const esHuesped = inc.origen === "huesped";
+  const esLimpieza = inc.tipo_solicitud === "limpieza";
+  const tipo = esLimpieza
+    ? "🧹 Solicitud de limpieza"
+    : inc.tipo === "otro" ? (inc.descripcion||"Otro") : (TIPOS[inc.tipo]||inc.tipo);
+  const autor = esHuesped
+    ? (inc.nombre_huesped ? `Huésped: ${inc.nombre_huesped}` : "Huésped")
+    : (inc.reporter?.nombre || "");
   const fecha = new Date(inc.creado_en);
   const diff = Math.floor((Date.now()-fecha)/60000);
   const ft = diff < 60 ? `hace ${diff}m` : diff < 1440 ? `hace ${Math.floor(diff/60)}h` : fecha.toLocaleDateString("es-ES");
@@ -728,11 +739,13 @@ function cardHtml(inc, withAction = false, mantView = false) {
   const btnLabel = mantView ? "Gestionar" : "Ver detalle";
   const btnFn = mantView ? `abrirDetalle(${inc.id})` : `verDetalleLimpiadora(${inc.id})`;
   const btn = withAction ? `<button type="button" onclick="${btnFn}" style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r);background:var(--slate-bg);font-size:11px;font-weight:600;color:var(--ink);cursor:pointer">${btnLabel}</button>` : "";
+  const huespedBadge = esHuesped ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:2px;background:#EDE4F7;color:#6B3FA0;text-transform:uppercase">Huésped</span>` : "";
   return `<div class="card" style="border-left:3px solid ${bc}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
           <span class="card-room">Hab. ${inc.habitacion}</span>
+          ${huespedBadge}
           <span class="badge badge-${inc.prioridad}">${inc.prioridad}</span>
           <span class="badge badge-${inc.estado}">${ESTADOS[inc.estado]||inc.estado}</span>
         </div>
@@ -741,7 +754,7 @@ function cardHtml(inc, withAction = false, mantView = false) {
       <span style="font-size:10px;color:var(--slate);white-space:nowrap">${inc.codigo||""}</span>
     </div>
     ${fotos ? `<div style="display:flex;gap:5px;margin-top:10px">${fotos}</div>` : ""}
-    <div class="card-meta">${rep.nombre||""} ${rep.planta?"· "+rep.planta:""} · ${ft}</div>
+    <div class="card-meta">${autor}${inc.reporter?.planta ? " · " + inc.reporter.planta : ""} · ${ft}</div>
     ${btn}
   </div>`;
 }
@@ -776,7 +789,7 @@ async function abrirDetalle(id) {
     </div>
     <span class="section-label">Conversación</span>
     <div id="comentarios-lista" style="margin-bottom:10px;max-height:260px;overflow-y:auto">
-      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre)}
+      ${comentariosInternosHtml(inc.comentarios_internos || [], inc.notas, inc.reporter?.nombre, inc.id)}
     </div>
     <div class="field" style="margin-bottom:14px">
       <textarea id="nuevo-comentario" rows="2" placeholder="Escribe un mensaje (opcional)..."></textarea>
@@ -789,13 +802,18 @@ async function abrirDetalle(id) {
   openSheet("sheet-detalle");
 }
 
-function comentariosInternosHtml(comentarios, notaApertura, autorApertura) {
+function comentariosInternosHtml(comentarios, notaApertura, autorApertura, incId) {
   let html = "";
   if (notaApertura) {
+    const translateId = `transl-${incId || 'nota'}`;
     html += `
       <div style="background:var(--emer-bg);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--emerald)">
-        <div style="font-size:11px;font-weight:700;color:var(--emerald);margin-bottom:3px">${autorApertura||'Reportante'} · Aviso inicial</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:11px;font-weight:700;color:var(--emerald)">${autorApertura||'Reportante'} · Aviso inicial</span>
+          <button onclick="traducirTexto('${notaApertura.replace(/'/g,"\\'").replace(/\n/g,' ')}','${translateId}')" style="background:none;border:1px solid var(--emerald);border-radius:2px;color:var(--emerald);font-size:10px;font-weight:700;padding:2px 7px;cursor:pointer">Traducir</button>
+        </div>
         <div style="font-size:13px;color:var(--text);line-height:1.4">${notaApertura}</div>
+        <div id="${translateId}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--emerald)33;font-size:12px;color:var(--emerald);font-style:italic"></div>
       </div>
     `;
   }
@@ -1026,14 +1044,55 @@ async function cargarHabitaciones() {
     if (r.status === 401) { logout(); return; }
     habitacionesCache = await r.json();
     if (!habitacionesCache.length) { l.innerHTML = '<div class="empty">Sin habitaciones todavía. Añade la primera.</div>'; return; }
-    l.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px">` +
-      habitacionesCache.map(h => `
-        <span style="display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;font-size:12px;font-weight:600;color:var(--ink)">
-          ${h.numero}
-          <span onclick="eliminarHabitacion(${h.id})" style="cursor:pointer;color:var(--crimson);font-weight:700">×</span>
-        </span>
-      `).join("") + `</div>`;
+    l.innerHTML = habitacionesCache.map(h => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px">
+        <div style="font-weight:700;color:var(--ink);font-size:14px;flex:1">Hab. ${h.numero}</div>
+        ${h.token ? `<button onclick="verQR('${h.token}','${h.numero}')" style="background:none;border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:11px;font-weight:600;color:var(--slate);cursor:pointer">QR</button>` : ""}
+        <span onclick="eliminarHabitacion(${h.id})" style="cursor:pointer;color:var(--crimson);font-weight:700;font-size:18px;line-height:1">×</span>
+      </div>
+    `).join("");
   } catch { l.innerHTML = '<div class="empty">Error de conexión.</div>'; }
+}
+
+function verQR(tok, numero) {
+  const url = `${API}/h/${tok}`;
+  const html = `
+    <div class="sheet-title">QR Hab. ${numero}<button class="sheet-close" onclick="closeSheet('sheet-qr')">×</button></div>
+    <div style="text-align:center;padding:20px 0">
+      <div id="qr-canvas" style="display:inline-block;padding:12px;background:#fff;border:1px solid var(--border);border-radius:var(--r2)"></div>
+      <p style="font-size:11px;color:var(--slate);margin-top:12px;word-break:break-all">${url}</p>
+      <button onclick="descargarQR('${numero}')" class="btn btn-primary btn-sm" style="margin-top:16px;width:auto;padding:8px 20px">Descargar QR</button>
+    </div>
+  `;
+  document.getElementById("sheet-qr-body").innerHTML = html;
+  openSheet("sheet-qr");
+  // Generar QR con librería externa
+  const script = document.getElementById("qrcode-script");
+  const render = () => {
+    new QRCode(document.getElementById("qr-canvas"), {
+      text: url, width: 200, height: 200,
+      colorDark: "#222222", colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  };
+  if (!script) {
+    const s = document.createElement("script");
+    s.id = "qrcode-script";
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    s.onload = render;
+    document.head.appendChild(s);
+  } else {
+    render();
+  }
+}
+
+function descargarQR(numero) {
+  const canvas = document.querySelector("#qr-canvas canvas");
+  if (!canvas) return;
+  const a = document.createElement("a");
+  a.href = canvas.toDataURL("image/png");
+  a.download = `QR_hab_${numero}.png`;
+  a.click();
 }
 
 async function eliminarHabitacion(hid) {
@@ -1062,6 +1121,27 @@ async function crearHabitaciones() {
   } else {
     const d = await r.json();
     err.textContent = d.detail || "Error"; err.style.display = "block";
+  }
+}
+
+// ── Traducción con MyMemory (gratuito, sin API key) ───────────
+async function traducirTexto(texto, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.style.display = "block";
+  el.textContent = "Traduciendo...";
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(texto)}&langpair=auto|es`;
+    const r = await fetch(url);
+    const d = await r.json();
+    const traduccion = d.responseData?.translatedText;
+    if (traduccion && traduccion !== texto) {
+      el.textContent = "🇪🇸 " + traduccion;
+    } else {
+      el.textContent = "No se pudo traducir.";
+    }
+  } catch {
+    el.textContent = "Error de conexión al traducir.";
   }
 }
 
