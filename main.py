@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.database import engine, sync_missing_columns
+from app.database import engine, sync_missing_columns, sync_missing_enum_values
 from app.models.models import Base
 from app.routers import auth, incidencias, admin, websocket, fotos, perfil, notificaciones, huesped
 from app.auth import hash_password
@@ -16,6 +16,7 @@ load_dotenv()
 
 Base.metadata.create_all(bind=engine)
 sync_missing_columns()
+sync_missing_enum_values()
 
 app = FastAPI(title="Hotel del Pintor", version="2.0.0", docs_url="/docs")
 
