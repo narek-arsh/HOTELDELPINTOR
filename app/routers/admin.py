@@ -120,6 +120,18 @@ def desactivar_usuario(
     return {"ok": True}
 
 
+@router.get("/limpiadoras")
+def listar_limpiadoras(
+    db: Session = Depends(get_db),
+    _=Depends(require_rol(RolEnum.admin, RolEnum.gobernanta)),
+):
+    """Lista mínima de limpiadoras activas, para el selector de asignación de gobernanta/admin."""
+    limpiadoras = db.query(Usuario).filter(
+        Usuario.rol == RolEnum.limpiadora, Usuario.activo == True
+    ).order_by(Usuario.nombre).all()
+    return [{"id": u.id, "nombre": u.nombre, "planta": u.planta} for u in limpiadoras]
+
+
 # ── Habitaciones ─────────────────────────────────────────────────
 
 class HabitacionCreate(BaseModel):
